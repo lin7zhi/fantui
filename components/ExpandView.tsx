@@ -26,7 +26,7 @@ export function ExpandView({ settings }: Props) {
       const res = await expandTags(tags, settings)
       setResult(res)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Expansion failed')
+      setError(err instanceof Error ? err.message : '扩写失败')
     } finally {
       setProcessing(false)
     }
@@ -46,27 +46,27 @@ export function ExpandView({ settings }: Props) {
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className="space-y-8"
     >
-      {/* Info */}
+      {/* 说明 */}
       <div className="glass rounded-2xl p-5 border-l-2 border-purple-500/30">
         <p className="text-sm text-zinc-400 leading-relaxed">
-          Enter basic tags or elements below. The AI will expand them into a detailed natural
-          language description based on your dimension and mode settings.
+          输入简单的标签或元素关键词，AI 将根据左侧配置面板中的维度开关和模式设置，
+          扩写为细节饱满的中文自然语言长段落描述。
         </p>
       </div>
 
-      {/* Input */}
+      {/* 输入 */}
       <div className="space-y-3">
-        <label className="text-sm font-medium text-zinc-300 block">Input Tags</label>
+        <label className="text-sm font-medium text-zinc-300 block">输入基础标签</label>
         <textarea
           value={tags}
           onChange={(e) => setTags(e.target.value)}
-          placeholder="e.g. 1girl, forest, mage, night, moonlight, flowing robes..."
+          placeholder="例如：1girl, 森林, 魔法师, 夜晚, 月光, 飘逸长袍..."
           rows={5}
           className="input-dark w-full resize-none font-mono text-sm"
         />
       </div>
 
-      {/* Button */}
+      {/* 按钮 */}
       <div className="flex justify-center">
         <motion.button
           onClick={handleExpand}
@@ -83,12 +83,12 @@ export function ExpandView({ settings }: Props) {
             {processing ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Expanding...
+                扩写中...
               </>
             ) : (
               <>
                 <Sparkles className="w-5 h-5" />
-                Expand Tags
+                开始扩写
               </>
             )}
           </span>
@@ -96,7 +96,7 @@ export function ExpandView({ settings }: Props) {
         </motion.button>
       </div>
 
-      {/* Error */}
+      {/* 错误 */}
       <AnimatePresence>
         {error && (
           <motion.div
@@ -111,7 +111,7 @@ export function ExpandView({ settings }: Props) {
         )}
       </AnimatePresence>
 
-      {/* Result */}
+      {/* 结果 */}
       <AnimatePresence>
         {result && (
           <motion.div
@@ -120,7 +120,7 @@ export function ExpandView({ settings }: Props) {
             className="space-y-3"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-zinc-300">Expansion Result</h3>
+              <h3 className="text-sm font-medium text-zinc-300">扩写结果</h3>
               <button
                 onClick={handleCopy}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.04] transition-all"
@@ -130,7 +130,7 @@ export function ExpandView({ settings }: Props) {
                 ) : (
                   <Copy className="w-3.5 h-3.5" />
                 )}
-                {copied ? 'Copied' : 'Copy'}
+                {copied ? '已复制' : '复制结果'}
               </button>
             </div>
             <div className="glass rounded-2xl p-6">
@@ -144,4 +144,3 @@ export function ExpandView({ settings }: Props) {
     </motion.div>
   )
 }
-
