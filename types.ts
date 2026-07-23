@@ -74,7 +74,6 @@ export const PROVIDERS = [
   { value: 'openai', label: 'OpenAI' },
   { value: 'gemini', label: 'Gemini' },
   { value: 'claude', label: 'Claude' },
-  { value: 'qwen', label: 'Qwen' },
-  { value: 'custom', label: 'Custom' },
+  { value: 'qwen', label: '通义千问' },
+  { value: 'custom', label: '自定义' },
 ]
-
