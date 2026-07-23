@@ -21,7 +21,7 @@ export function Navbar({ onSettingsToggle }: NavbarProps) {
             <Cpu className="w-5 h-5 text-white" />
           </div>
           <span className="text-lg font-semibold tracking-tight text-zinc-200">
-            提示词引擎
+            Nine7反推助手
           </span>
         </div>
 
