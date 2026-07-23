@@ -13,8 +13,8 @@ import { DEFAULT_SETTINGS } from '@/types'
 import type { Settings } from '@/types'
 
 const TABS = [
-  { key: 'analyze' as const, label: 'Analyze', icon: ScanSearch },
-  { key: 'expand' as const, label: 'Expand', icon: Sparkles },
+  { key: 'analyze' as const, label: '图像反推', icon: ScanSearch },
+  { key: 'expand' as const, label: '标签扩写', icon: Sparkles },
 ]
 
 export default function Home() {
@@ -24,7 +24,6 @@ export default function Home() {
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 })
 
-  // Update tab indicator position
   useEffect(() => {
     const idx = TABS.findIndex((t) => t.key === activeTab)
     const el = tabRefs.current[idx]
@@ -39,7 +38,7 @@ export default function Home() {
       <Navbar onSettingsToggle={() => setSettingsOpen(true)} />
 
       <main className="relative z-10 max-w-4xl mx-auto px-6 pt-28 pb-20">
-        {/* Hero */}
+        {/* 主标题 */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -47,9 +46,9 @@ export default function Home() {
           className="text-center mb-16"
         >
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-none">
-            <span className="gradient-text">Vision</span>
+            <span className="gradient-text">视觉</span>
             <span className="text-zinc-500 mx-3 font-light">/</span>
-            <span className="gradient-text">Words</span>
+            <span className="gradient-text">语言</span>
           </h1>
           <motion.p
             initial={{ opacity: 0 }}
@@ -57,12 +56,11 @@ export default function Home() {
             transition={{ delay: 0.3 }}
             className="mt-5 text-zinc-500 text-lg max-w-lg mx-auto leading-relaxed"
           >
-            Transform images into precise prompt descriptions. Concurrent processing, checkpoint
-            resume, single-image fallback.
+            图像反推智能提示词，并发处理、断点续跑、单图降级、标签扩写
           </motion.p>
         </motion.div>
 
-        {/* Tab navigation */}
+        {/* Tab 导航 */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -70,7 +68,6 @@ export default function Home() {
           className="flex justify-center mb-12"
         >
           <div className="relative inline-flex gap-1 p-1.5 rounded-2xl glass">
-            {/* Sliding indicator */}
             <div
               className="absolute top-1.5 h-[calc(100%-12px)] rounded-xl bg-white/[0.06] tab-indicator"
               style={{ left: indicatorStyle.left, width: indicatorStyle.width }}
@@ -96,7 +93,7 @@ export default function Home() {
           </div>
         </motion.div>
 
-        {/* Tab content */}
+        {/* Tab 内容 */}
         <AnimatePresence mode="wait">
           {activeTab === 'analyze' ? (
             <AnalyzeView key="analyze" settings={settings} onSettingsChange={setSettings} />
@@ -106,7 +103,7 @@ export default function Home() {
         </AnimatePresence>
       </main>
 
-      {/* Settings drawer */}
+      {/* 设置抽屉 */}
       <SettingsDrawer
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
@@ -116,4 +113,3 @@ export default function Home() {
     </div>
   )
 }
-
