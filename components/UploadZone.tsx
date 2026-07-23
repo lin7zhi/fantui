@@ -45,7 +45,6 @@ export function UploadZone({ files, onChange }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Drop zone */}
       <motion.div
         onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
@@ -78,20 +77,19 @@ export function UploadZone({ files, onChange }: Props) {
           </div>
           <div className="text-center">
             <p className="text-sm font-medium text-zinc-300">
-              {dragging ? 'Drop files here' : 'Drop images or ZIP archive'}
+              {dragging ? '松开鼠标上传' : '拖拽图片或 ZIP 压缩包到此处'}
             </p>
             <p className="text-xs text-zinc-600 mt-1">
-              JPG, PNG, WebP, BMP, GIF or .zip
+              支持 JPG、PNG、WebP、BMP、GIF 或 .zip 压缩包
             </p>
           </div>
         </div>
       </motion.div>
 
-      {/* File list */}
       {files.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs text-zinc-500 font-medium">
-            {files.length} file{files.length > 1 ? 's' : ''} selected
+            已选择 {files.length} 个文件
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
             {previews.map((file, idx) => (
@@ -127,7 +125,7 @@ export function UploadZone({ files, onChange }: Props) {
             ))}
             {files.length > 12 && (
               <div className="glass rounded-xl flex items-center justify-center aspect-square text-zinc-500 text-sm">
-                +{files.length - 12} more
+                还有 {files.length - 12} 个
               </div>
             )}
           </div>
@@ -136,4 +134,3 @@ export function UploadZone({ files, onChange }: Props) {
     </div>
   )
 }
-
