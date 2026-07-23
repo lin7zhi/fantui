@@ -16,17 +16,15 @@ export function Navbar({ onSettingsToggle }: NavbarProps) {
       className="fixed top-0 left-0 right-0 z-50 px-6 py-4"
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between">
-        {/* Logo */}
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center">
             <Cpu className="w-5 h-5 text-white" />
           </div>
           <span className="text-lg font-semibold tracking-tight text-zinc-200">
-            Prompt Engine
+            提示词引擎
           </span>
         </div>
 
-        {/* Actions */}
         <div className="flex items-center gap-2">
           <a
             href="https://github.com"
@@ -47,4 +45,3 @@ export function Navbar({ onSettingsToggle }: NavbarProps) {
     </motion.header>
   )
 }
-
