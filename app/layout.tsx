@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: '智能提示词引擎',
+  title: 'Nine7反推助手',
   description: '图像反推与标签扩写',
 }
 
