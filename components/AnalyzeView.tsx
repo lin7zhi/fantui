@@ -32,7 +32,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
     if (!files.length) return
     setProcessing(true)
     setProgress(0)
-    setProgressMsg('Uploading...')
+    setProgressMsg('正在上传文件...')
     setResults([])
     setError(null)
     setJobId(null)
@@ -40,7 +40,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
     try {
       const { jobId: jid } = await startAnalysis(files, settings)
       setJobId(jid)
-      setProgressMsg('Processing...')
+      setProgressMsg('正在处理中...')
 
       const unsub = subscribeToJob(
         jid,
@@ -53,7 +53,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
             setProgress(1)
             setProcessing(false)
           } else if (evt.type === 'error') {
-            setError(evt.message ?? 'Unknown error')
+            setError(evt.message ?? '未知错误')
             setProcessing(false)
           }
         },
@@ -64,15 +64,15 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
       )
       unsubRef.current = unsub
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to start')
+      setError(err instanceof Error ? err.message : '启动失败')
       setProcessing(false)
     }
   }, [files, settings])
 
   const allText = results
     .map((r, i) => {
-      const status = r.success ? (r.cached ? 'CACHED' : 'OK') : 'ERROR'
-      const content = r.success ? r.prompt : `Error: ${r.error}`
+      const status = r.success ? (r.cached ? '缓存' : '成功') : '失败'
+      const content = r.success ? r.prompt : `错误: ${r.error}`
       return `[${i + 1}] ${r.filename} [${status}]\n${'─'.repeat(40)}\n${content}`
     })
     .join('\n\n')
@@ -94,11 +94,11 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className="space-y-8"
     >
-      {/* Controls row */}
+      {/* 控制区 */}
       <div className="glass rounded-2xl p-5">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
           <div>
-            <label className="text-xs text-zinc-500 mb-1.5 block">Images per batch</label>
+            <label className="text-xs text-zinc-500 mb-1.5 block">单次合并图片数</label>
             <input
               type="range"
               min={1}
@@ -109,10 +109,10 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
               }
               className="w-full h-1.5 rounded-full bg-white/[0.06] appearance-none cursor-pointer accent-purple-500"
             />
-            <span className="text-xs text-zinc-500 mt-1 block">{settings.imagesPerRequest}</span>
+            <span className="text-xs text-zinc-500 mt-1 block">{settings.imagesPerRequest} 张/次</span>
           </div>
           <div>
-            <label className="text-xs text-zinc-500 mb-1.5 block">Concurrency</label>
+            <label className="text-xs text-zinc-500 mb-1.5 block">并发请求数</label>
             <input
               type="range"
               min={1}
@@ -123,7 +123,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
               }
               className="w-full h-1.5 rounded-full bg-white/[0.06] appearance-none cursor-pointer accent-purple-500"
             />
-            <span className="text-xs text-zinc-500 mt-1 block">{settings.maxConcurrent}</span>
+            <span className="text-xs text-zinc-500 mt-1 block">{settings.maxConcurrent} 路并发</span>
           </div>
           <div className="flex items-end">
             <label className="flex items-center gap-2.5 cursor-pointer">
@@ -137,31 +137,31 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
                 <div className="w-10 h-6 rounded-full bg-white/[0.06] peer-checked:bg-purple-500/40 transition-colors" />
                 <div className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-zinc-400 peer-checked:bg-purple-400 peer-checked:translate-x-4 transition-all" />
               </div>
-              <span className="text-xs text-zinc-400">Skip completed</span>
+              <span className="text-xs text-zinc-400">跳过已完成（断点续跑）</span>
             </label>
           </div>
         </div>
 
-        {/* Custom prompt */}
+        {/* 自定义模板 */}
         <details className="group">
           <summary className="flex items-center gap-2 text-xs text-zinc-500 cursor-pointer hover:text-zinc-300 transition-colors">
             <ChevronDown className="w-3.5 h-3.5 transition-transform group-open:rotate-180" />
-            Custom template override
+            自定义模板覆盖（可选）
           </summary>
           <textarea
             value={settings.customPrompt}
             onChange={(e) => onSettingsChange({ ...settings, customPrompt: e.target.value })}
-            placeholder="Overrides all mode settings when provided..."
+            placeholder="填写后将完全覆盖所有模式和维度设置..."
             rows={3}
             className="input-dark w-full mt-3 text-xs font-mono resize-none"
           />
         </details>
       </div>
 
-      {/* Upload */}
+      {/* 上传区 */}
       <UploadZone files={files} onChange={setFiles} />
 
-      {/* Start button */}
+      {/* 开始按钮 */}
       <div className="flex justify-center">
         <motion.button
           onClick={handleStart}
@@ -178,12 +178,12 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
             {processing ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Processing...
+                处理中...
               </>
             ) : (
               <>
                 <Play className="w-5 h-5" />
-                Start Analysis
+                开始反推
               </>
             )}
           </span>
@@ -191,7 +191,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
         </motion.button>
       </div>
 
-      {/* Progress */}
+      {/* 进度条 */}
       <AnimatePresence>
         {processing && (
           <motion.div
@@ -219,7 +219,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
         )}
       </AnimatePresence>
 
-      {/* Error */}
+      {/* 错误提示 */}
       <AnimatePresence>
         {error && (
           <motion.div
@@ -230,14 +230,14 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
           >
             <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-red-300">Analysis failed</p>
+              <p className="text-sm font-medium text-red-300">反推失败</p>
               <p className="text-xs text-zinc-500 mt-1">{error}</p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Results */}
+      {/* 结果区 */}
       <AnimatePresence>
         {results.length > 0 && (
           <motion.div
@@ -245,15 +245,15 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
           >
-            {/* Stats + Downloads */}
+            {/* 统计 + 下载 */}
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-4 text-sm">
                 <span className="flex items-center gap-1.5 text-emerald-400">
-                  <CheckCircle2 className="w-4 h-4" /> {successCount} success
+                  <CheckCircle2 className="w-4 h-4" /> {successCount} 成功
                 </span>
                 {errorCount > 0 && (
                   <span className="flex items-center gap-1.5 text-red-400">
-                    <XCircle className="w-4 h-4" /> {errorCount} failed
+                    <XCircle className="w-4 h-4" /> {errorCount} 失败
                   </span>
                 )}
               </div>
@@ -263,26 +263,26 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
                     href={getDownloadUrl(jobId, 'all')}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm text-zinc-300 hover:bg-white/[0.08] transition-all"
                   >
-                    <Download className="w-4 h-4" /> All files
+                    <Download className="w-4 h-4" /> 全部文件
                   </a>
                   <a
                     href={getDownloadUrl(jobId, 'txt')}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm text-zinc-300 hover:bg-white/[0.08] transition-all"
                   >
-                    <Download className="w-4 h-4" /> Text only
+                    <Download className="w-4 h-4" /> 仅文本
                   </a>
                 </div>
               )}
             </div>
 
-            {/* Gallery toggle */}
+            {/* 画廊切换 */}
             <div>
               <button
                 onClick={() => setShowGallery(!showGallery)}
                 className="flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
               >
                 <ImageIcon className="w-4 h-4" />
-                <span>{showGallery ? 'Hide' : 'Show'} gallery preview</span>
+                <span>{showGallery ? '收起' : '展开'}图文对照画廊</span>
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showGallery ? 'rotate-180' : ''}`} />
               </button>
 
@@ -332,16 +332,16 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
               </AnimatePresence>
             </div>
 
-            {/* Text summary */}
+            {/* 文本摘要 */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-zinc-300">Text Summary</h3>
+                <h3 className="text-sm font-medium text-zinc-300">纯文本对照摘要</h3>
                 <button
                   onClick={handleCopy}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.04] transition-all"
                 >
                   {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copied ? 'Copied' : 'Copy all'}
+                  {copied ? '已复制' : '复制全部'}
                 </button>
               </div>
               <div className="glass rounded-2xl p-5 max-h-[500px] overflow-y-auto">
@@ -363,7 +363,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
                         </span>
                       </div>
                       <p className="text-sm text-zinc-300 font-mono leading-relaxed pl-5 border-l border-white/[0.04]">
-                        {r.success ? r.prompt : `Error: ${r.error}`}
+                        {r.success ? r.prompt : `错误: ${r.error}`}
                       </p>
                     </div>
                   ))}
@@ -376,4 +376,3 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
     </motion.div>
   )
 }
-
