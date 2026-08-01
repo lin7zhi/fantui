@@ -1,12 +1,36 @@
-import type { Settings, AnalysisResult, JobEvent } from '@/types'
+import type { Settings, AnalysisResult, JobEvent, ProviderModels, FetchedProviderModels } from '@/types'
 
 const API = process.env.NEXT_PUBLIC_API_URL || ''
 
-export async function fetchModels(): Promise<string[]> {
+export async function fetchModels(): Promise<ProviderModels> {
   const res = await fetch(`${API}/api/models`)
   if (!res.ok) throw new Error('Failed to fetch models')
   const data = await res.json()
-  return data.models || []
+  return data.providers || {}
+}
+
+export async function fetchAllModels(
+  credentials: Record<string, { api_key?: string; base_url?: string }>,
+): Promise<Record<string, FetchedProviderModels>> {
+  const res = await fetch(`${API}/api/models/fetch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credentials }),
+  })
+  if (!res.ok) throw new Error('Failed to fetch all models')
+  const data = await res.json()
+  return data.providers || {}
+}
+
+export async function saveModels(providers: ProviderModels): Promise<boolean> {
+  const res = await fetch(`${API}/api/models`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ providers }),
+  })
+  if (!res.ok) throw new Error('Failed to save models')
+  const data = await res.json()
+  return !!data.persisted
 }
 
 function buildSettingsPayload(s: Settings) {

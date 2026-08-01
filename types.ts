@@ -34,6 +34,13 @@ export interface JobEvent {
   results?: AnalysisResult[]
 }
 
+export type ProviderModels = Record<string, string[]>
+
+export interface FetchedProviderModels {
+  models: string[]
+  error?: string
+}
+
 export const DEFAULT_SETTINGS: Settings = {
   provider: 'openai',
   apiKey: '',
@@ -75,5 +82,12 @@ export const PROVIDERS = [
   { value: 'gemini', label: 'Gemini' },
   { value: 'claude', label: 'Claude' },
   { value: 'qwen', label: '通义千问' },
+  { value: 'zhipu', label: '智谱 GLM' },
+  { value: 'moonshot', label: 'Kimi 月之暗面' },
+  { value: 'doubao', label: '豆包' },
+  { value: 'siliconflow', label: '硅基流动' },
+  { value: 'openrouter', label: 'OpenRouter' },
+  { value: 'xai', label: 'Grok (xAI)' },
+  { value: 'ollama', label: 'Ollama 本地' },
   { value: 'custom', label: '自定义' },
 ]

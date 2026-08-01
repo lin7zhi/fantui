@@ -6,10 +6,10 @@ import {
   AlertTriangle, Frame, Mountain, Palette,
   Camera, ShieldOff, RefreshCw,
 } from 'lucide-react'
-import { useState, useCallback } from 'react'
-import type { Settings } from '@/types'
+import { useState, useCallback, useEffect } from 'react'
+import type { Settings, ProviderModels, FetchedProviderModels } from '@/types'
 import { PROVIDERS } from '@/types'
-import { fetchModels } from '@/lib/api'
+import { fetchModels, fetchAllModels, saveModels } from '@/lib/api'
 
 const DIM_ICONS: Record<string, React.ReactNode> = {
   appearance: <User className="w-3.5 h-3.5" />,
@@ -33,6 +33,11 @@ const DIM_LABELS: Record<string, string> = {
   style: '画风质量',
 }
 
+const PROVIDER_LABELS: Record<string, string> = {
+  default: '默认（环境变量）',
+  ...Object.fromEntries(PROVIDERS.map((p) => [p.value, p.label])),
+}
+
 interface Props {
   open: boolean
   onClose: () => void
@@ -42,7 +47,10 @@ interface Props {
 
 export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
   const [apiOpen, setApiOpen] = useState(false)
-  const [models, setModels] = useState<string[]>([])
+  const [persisted, setPersisted] = useState<ProviderModels>({})
+  const [persistedLoaded, setPersistedLoaded] = useState(false)
+  const [fetched, setFetched] = useState<Record<string, FetchedProviderModels> | null>(null)
+  const [checked, setChecked] = useState<Record<string, Set<string>>>({})
   const [modelStatus, setModelStatus] = useState('')
 
   const update = useCallback(
@@ -58,17 +66,75 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
     [settings, onChange],
   )
 
+  useEffect(() => {
+    if (apiOpen && !persistedLoaded) {
+      setPersistedLoaded(true)
+      fetchModels().then(setPersisted).catch(() => {})
+    }
+  }, [apiOpen, persistedLoaded])
+
+  const currentModels =
+    persisted[settings.provider]?.length
+      ? persisted[settings.provider]
+      : persisted['default'] || []
+
   const loadModels = useCallback(async () => {
     try {
-      setModelStatus('加载中...')
-      const m = await fetchModels()
-      setModels(m)
-      if (m.length > 0 && !settings.model) update({ model: m[0] })
-      setModelStatus(`已加载 ${m.length} 个模型`)
+      setModelStatus('正在从各供应商获取...')
+      const credentials: Record<string, { api_key?: string; base_url?: string }> = {}
+      if (settings.apiKey || settings.baseUrl) {
+        credentials[settings.provider] = {}
+        if (settings.apiKey) credentials[settings.provider].api_key = settings.apiKey
+        if (settings.baseUrl) credentials[settings.provider].base_url = settings.baseUrl
+      }
+      const result = await fetchAllModels(credentials)
+      setFetched(result)
+      const sel: Record<string, Set<string>> = {}
+      let total = 0
+      for (const [p, info] of Object.entries(result)) {
+        sel[p] = new Set(info.models)
+        total += info.models.length
+      }
+      setChecked(sel)
+      setModelStatus(
+        total > 0
+          ? `已从 ${Object.keys(result).length} 个供应商获取 ${total} 个模型`
+          : '未获取到模型（检查密钥配置）',
+      )
     } catch {
-      setModelStatus('加载失败')
+      setModelStatus('获取失败')
     }
-  }, [settings.model, update])
+  }, [settings.provider, settings.apiKey, settings.baseUrl])
+
+  const toggleCheck = useCallback((prov: string, m: string) => {
+    setChecked((prev) => {
+      const s = new Set(prev[prov] ?? [])
+      if (s.has(m)) s.delete(m)
+      else s.add(m)
+      return { ...prev, [prov]: s }
+    })
+  }, [])
+
+  const applyModel = useCallback(
+    (prov: string, m: string) => update({ provider: prov, model: m }),
+    [update],
+  )
+
+  const saveSelected = useCallback(async () => {
+    try {
+      const merged: ProviderModels = { ...persisted }
+      for (const [p, set] of Object.entries(checked)) {
+        const arr = [...set]
+        if (arr.length) merged[p] = arr
+        else delete merged[p]
+      }
+      const ok = await saveModels(merged)
+      setPersisted(merged)
+      setModelStatus(ok ? '已保存为持久模型' : '已更新（磁盘写入失败，重启后失效）')
+    } catch {
+      setModelStatus('保存失败')
+    }
+  }, [persisted, checked])
 
   return (
     <AnimatePresence>
@@ -154,13 +220,16 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
                       <div>
                         <label className="text-xs text-zinc-500 mb-1.5 block">模型选择</label>
                         <div className="flex gap-2">
-                          {models.length > 0 ? (
+                          {currentModels.length > 0 ? (
                             <select
                               value={settings.model}
                               onChange={(e) => update({ model: e.target.value })}
                               className="input-dark flex-1"
                             >
-                              {models.map((m) => (
+                              {settings.model && !currentModels.includes(settings.model) && (
+                                <option value={settings.model}>{settings.model}</option>
+                              )}
+                              {currentModels.map((m) => (
                                 <option key={m} value={m}>{m}</option>
                               ))}
                             </select>
@@ -175,7 +244,7 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
                           <button
                             onClick={loadModels}
                             className="px-3 rounded-xl bg-white/[0.04] border border-white/[0.06] text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.08] transition-all"
-                            title="从环境变量获取模型列表"
+                            title="从所有已配置供应商获取全部模型"
                           >
                             <RefreshCw className="w-4 h-4" />
                           </button>
@@ -184,6 +253,59 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
                           <p className="text-xs text-zinc-600 mt-1.5">{modelStatus}</p>
                         )}
                       </div>
+
+                      {fetched && (
+                        <div className="space-y-3">
+                          <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                            {Object.entries(fetched).map(([prov, info]) => (
+                              <div
+                                key={prov}
+                                className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-3"
+                              >
+                                <p className="text-xs font-medium text-zinc-400 mb-2">
+                                  {PROVIDER_LABELS[prov] || prov}
+                                  {info.models.length > 0 && (
+                                    <span className="text-zinc-600">（{info.models.length}）</span>
+                                  )}
+                                </p>
+                                {info.error ? (
+                                  <p className="text-xs text-red-400/80 break-all">{info.error}</p>
+                                ) : (
+                                  <div className="space-y-1">
+                                    {info.models.map((m) => (
+                                      <div key={m} className="flex items-center gap-2">
+                                        <input
+                                          type="checkbox"
+                                          checked={checked[prov]?.has(m) ?? false}
+                                          onChange={() => toggleCheck(prov, m)}
+                                          className="accent-purple-500 shrink-0"
+                                        />
+                                        <button
+                                          onClick={() => applyModel(prov, m)}
+                                          title="使用该供应商与模型"
+                                          className={`text-xs truncate text-left transition-colors ${
+                                            settings.provider === prov && settings.model === m
+                                              ? 'text-purple-300'
+                                              : 'text-zinc-500 hover:text-zinc-200'
+                                          }`}
+                                        >
+                                          {m}
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          <button
+                            onClick={saveSelected}
+                            className="w-full px-3 py-2 rounded-xl bg-purple-500/15 border border-purple-500/25 text-purple-300 text-xs font-medium hover:bg-purple-500/25 transition-all"
+                          >
+                            保存勾选为持久模型
+                          </button>
+                        </div>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>
