@@ -1,12 +1,12 @@
-import type { Settings, AnalysisResult, JobEvent, ProviderModels, FetchedProviderModels } from '@/types'
+import type { Settings, AnalysisResult, JobEvent, FetchedProviderModels } from '@/types'
 
 const API = process.env.NEXT_PUBLIC_API_URL || ''
 
-export async function fetchModels(): Promise<ProviderModels> {
+export async function fetchModels(): Promise<string[]> {
   const res = await fetch(`${API}/api/models`)
   if (!res.ok) throw new Error('Failed to fetch models')
   const data = await res.json()
-  return data.providers || {}
+  return data.models || []
 }
 
 export async function fetchAllModels(
@@ -20,17 +20,6 @@ export async function fetchAllModels(
   if (!res.ok) throw new Error('Failed to fetch all models')
   const data = await res.json()
   return data.providers || {}
-}
-
-export async function saveModels(providers: ProviderModels): Promise<boolean> {
-  const res = await fetch(`${API}/api/models`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ providers }),
-  })
-  if (!res.ok) throw new Error('Failed to save models')
-  const data = await res.json()
-  return !!data.persisted
 }
 
 function buildSettingsPayload(s: Settings) {

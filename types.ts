@@ -34,8 +34,6 @@ export interface JobEvent {
   results?: AnalysisResult[]
 }
 
-export type ProviderModels = Record<string, string[]>
-
 export interface FetchedProviderModels {
   models: string[]
   error?: string

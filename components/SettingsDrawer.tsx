@@ -7,9 +7,9 @@ import {
   Camera, ShieldOff, RefreshCw,
 } from 'lucide-react'
 import { useState, useCallback, useEffect } from 'react'
-import type { Settings, ProviderModels, FetchedProviderModels } from '@/types'
+import type { Settings, FetchedProviderModels } from '@/types'
 import { PROVIDERS } from '@/types'
-import { fetchModels, fetchAllModels, saveModels } from '@/lib/api'
+import { fetchModels, fetchAllModels } from '@/lib/api'
 
 const DIM_ICONS: Record<string, React.ReactNode> = {
   appearance: <User className="w-3.5 h-3.5" />,
@@ -33,10 +33,8 @@ const DIM_LABELS: Record<string, string> = {
   style: '画风质量',
 }
 
-const PROVIDER_LABELS: Record<string, string> = {
-  default: '默认（环境变量）',
-  ...Object.fromEntries(PROVIDERS.map((p) => [p.value, p.label])),
-}
+const PROVIDER_LABELS: Record<string, string> =
+  Object.fromEntries(PROVIDERS.map((p) => [p.value, p.label]))
 
 interface Props {
   open: boolean
@@ -47,10 +45,9 @@ interface Props {
 
 export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
   const [apiOpen, setApiOpen] = useState(false)
-  const [persisted, setPersisted] = useState<ProviderModels>({})
-  const [persistedLoaded, setPersistedLoaded] = useState(false)
+  const [models, setModels] = useState<string[]>([])
+  const [modelsLoaded, setModelsLoaded] = useState(false)
   const [fetched, setFetched] = useState<Record<string, FetchedProviderModels> | null>(null)
-  const [checked, setChecked] = useState<Record<string, Set<string>>>({})
   const [modelStatus, setModelStatus] = useState('')
 
   const update = useCallback(
@@ -67,16 +64,20 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
   )
 
   useEffect(() => {
-    if (apiOpen && !persistedLoaded) {
-      setPersistedLoaded(true)
-      fetchModels().then(setPersisted).catch(() => {})
+    if (apiOpen && !modelsLoaded) {
+      setModelsLoaded(true)
+      fetchModels()
+        .then((m) => {
+          setModels(m)
+          if (m.length > 0 && !settings.model) update({ model: m[0] })
+        })
+        .catch(() => {})
     }
-  }, [apiOpen, persistedLoaded])
+  }, [apiOpen, modelsLoaded, settings.model, update])
 
-  const currentModels =
-    persisted[settings.provider]?.length
-      ? persisted[settings.provider]
-      : persisted['default'] || []
+  const currentModels = fetched?.[settings.provider]?.models?.length
+    ? fetched[settings.provider].models
+    : models
 
   const loadModels = useCallback(async () => {
     try {
@@ -89,13 +90,7 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
       }
       const result = await fetchAllModels(credentials)
       setFetched(result)
-      const sel: Record<string, Set<string>> = {}
-      let total = 0
-      for (const [p, info] of Object.entries(result)) {
-        sel[p] = new Set(info.models)
-        total += info.models.length
-      }
-      setChecked(sel)
+      const total = Object.values(result).reduce((n, i) => n + i.models.length, 0)
       setModelStatus(
         total > 0
           ? `已从 ${Object.keys(result).length} 个供应商获取 ${total} 个模型`
@@ -106,35 +101,10 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
     }
   }, [settings.provider, settings.apiKey, settings.baseUrl])
 
-  const toggleCheck = useCallback((prov: string, m: string) => {
-    setChecked((prev) => {
-      const s = new Set(prev[prov] ?? [])
-      if (s.has(m)) s.delete(m)
-      else s.add(m)
-      return { ...prev, [prov]: s }
-    })
-  }, [])
-
   const applyModel = useCallback(
     (prov: string, m: string) => update({ provider: prov, model: m }),
     [update],
   )
-
-  const saveSelected = useCallback(async () => {
-    try {
-      const merged: ProviderModels = { ...persisted }
-      for (const [p, set] of Object.entries(checked)) {
-        const arr = [...set]
-        if (arr.length) merged[p] = arr
-        else delete merged[p]
-      }
-      const ok = await saveModels(merged)
-      setPersisted(merged)
-      setModelStatus(ok ? '已保存为持久模型' : '已更新（磁盘写入失败，重启后失效）')
-    } catch {
-      setModelStatus('保存失败')
-    }
-  }, [persisted, checked])
 
   return (
     <AnimatePresence>
@@ -273,37 +243,24 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
                                 ) : (
                                   <div className="space-y-1">
                                     {info.models.map((m) => (
-                                      <div key={m} className="flex items-center gap-2">
-                                        <input
-                                          type="checkbox"
-                                          checked={checked[prov]?.has(m) ?? false}
-                                          onChange={() => toggleCheck(prov, m)}
-                                          className="accent-purple-500 shrink-0"
-                                        />
-                                        <button
-                                          onClick={() => applyModel(prov, m)}
-                                          title="使用该供应商与模型"
-                                          className={`text-xs truncate text-left min-w-0 transition-colors ${
-                                            settings.provider === prov && settings.model === m
-                                              ? 'text-purple-300'
-                                              : 'text-zinc-500 hover:text-zinc-200'
-                                          }`}
-                                        >
-                                          {m}
-                                        </button>
-                                      </div>
+                                      <button
+                                        key={m}
+                                        onClick={() => applyModel(prov, m)}
+                                        title="使用该供应商与模型"
+                                        className={`block w-full text-xs truncate text-left transition-colors ${
+                                          settings.provider === prov && settings.model === m
+                                            ? 'text-purple-300'
+                                            : 'text-zinc-500 hover:text-zinc-200'
+                                        }`}
+                                      >
+                                        {m}
+                                      </button>
                                     ))}
                                   </div>
                                 )}
                               </div>
                             ))}
                           </div>
-                          <button
-                            onClick={saveSelected}
-                            className="w-full px-3 py-2 rounded-xl bg-purple-500/15 border border-purple-500/25 text-purple-300 text-xs font-medium hover:bg-purple-500/25 transition-all"
-                          >
-                            保存勾选为持久模型
-                          </button>
                         </div>
                       )}
                     </motion.div>
@@ -354,7 +311,12 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
                       onChange={(e) => {
                         const v = e.target.checked
                         const dims = { ...settings.dimensions, nsfw_detail: v }
-                        onChange({ ...settings, nsfwMode: v, dimensions: dims })
+                        onChange({
+                          ...settings,
+                          nsfwMode: v,
+                          dimensions: dims,
+                          ...(v && !settings.model ? { model: 'gcli-gemini-3.1-pro-preview' } : {}),
+                        })
                       }}
                       className="sr-only peer"
                     />
