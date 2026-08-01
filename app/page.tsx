@@ -6,6 +6,7 @@ import { ScanSearch, Sparkles } from 'lucide-react'
 
 import { Background } from '@/components/Background'
 import { Navbar } from '@/components/Navbar'
+import { AdminPanel } from '@/components/AdminPanel'
 import { SettingsDrawer } from '@/components/SettingsDrawer'
 import { AnalyzeView } from '@/components/AnalyzeView'
 import { ExpandView } from '@/components/ExpandView'
@@ -20,6 +21,7 @@ const TABS = [
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'analyze' | 'expand'>('analyze')
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [adminOpen, setAdminOpen] = useState(false)
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 })
@@ -35,7 +37,7 @@ export default function Home() {
   return (
     <div className="min-h-screen relative noise-overlay">
       <Background />
-      <Navbar onSettingsToggle={() => setSettingsOpen(true)} />
+      <Navbar onSettingsToggle={() => setSettingsOpen(true)} onAdminToggle={() => setAdminOpen(true)} />
 
       <main className="relative z-10 max-w-4xl mx-auto px-6 pt-28 pb-20">
         {/* 主标题 */}
@@ -110,6 +112,9 @@ export default function Home() {
         settings={settings}
         onChange={setSettings}
       />
+
+      {/* 管理员面板 */}
+      <AdminPanel open={adminOpen} onClose={() => setAdminOpen(false)} />
     </div>
   )
 }

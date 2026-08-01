@@ -1,13 +1,14 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Settings, Github, Cpu } from 'lucide-react'
+import { Settings, Github, Cpu, ShieldCheck } from 'lucide-react'
 
 interface NavbarProps {
   onSettingsToggle: () => void
+  onAdminToggle: () => void
 }
 
-export function Navbar({ onSettingsToggle }: NavbarProps) {
+export function Navbar({ onSettingsToggle, onAdminToggle }: NavbarProps) {
   return (
     <motion.header
       initial={{ opacity: 0, y: -20 }}
@@ -34,6 +35,13 @@ export function Navbar({ onSettingsToggle }: NavbarProps) {
           >
             <Github className="w-[18px] h-[18px]" />
           </a>
+          <button
+            onClick={onAdminToggle}
+            title="管理员设置"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] transition-all duration-200"
+          >
+            <ShieldCheck className="w-[18px] h-[18px]" />
+          </button>
           <button
             onClick={onSettingsToggle}
             className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] transition-all duration-200"

@@ -39,6 +39,25 @@ export interface FetchedProviderModels {
   error?: string
 }
 
+export interface ProviderDef {
+  value: string
+  label: string
+}
+
+export interface AdminProviderInfo {
+  label: string
+  type: string
+  base_url: string
+  api_key: string
+  model: string
+}
+
+export interface AdminConfig {
+  builtin: { value: string; label: string; disabled: boolean }[]
+  custom_providers: Record<string, AdminProviderInfo>
+  allowed_models: Record<string, string[]>
+}
+
 export const DEFAULT_SETTINGS: Settings = {
   provider: 'openai',
   apiKey: '',

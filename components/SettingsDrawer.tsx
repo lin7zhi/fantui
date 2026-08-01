@@ -7,9 +7,9 @@ import {
   Camera, ShieldOff, RefreshCw,
 } from 'lucide-react'
 import { useState, useCallback, useEffect } from 'react'
-import type { Settings, FetchedProviderModels } from '@/types'
+import type { Settings, FetchedProviderModels, ProviderDef } from '@/types'
 import { PROVIDERS } from '@/types'
-import { fetchModels, fetchAllModels } from '@/lib/api'
+import { fetchProviders, fetchModels, fetchAllModels } from '@/lib/api'
 
 const DIM_ICONS: Record<string, React.ReactNode> = {
   appearance: <User className="w-3.5 h-3.5" />,
@@ -33,9 +33,6 @@ const DIM_LABELS: Record<string, string> = {
   style: '画风质量',
 }
 
-const PROVIDER_LABELS: Record<string, string> =
-  Object.fromEntries(PROVIDERS.map((p) => [p.value, p.label]))
-
 interface Props {
   open: boolean
   onClose: () => void
@@ -45,8 +42,8 @@ interface Props {
 
 export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
   const [apiOpen, setApiOpen] = useState(false)
+  const [providers, setProviders] = useState<ProviderDef[]>(PROVIDERS)
   const [models, setModels] = useState<string[]>([])
-  const [modelsLoaded, setModelsLoaded] = useState(false)
   const [fetched, setFetched] = useState<Record<string, FetchedProviderModels> | null>(null)
   const [modelStatus, setModelStatus] = useState('')
 
@@ -63,17 +60,29 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
     [settings, onChange],
   )
 
+  const PROVIDER_LABELS: Record<string, string> =
+    Object.fromEntries(providers.map((p) => [p.value, p.label]))
+
   useEffect(() => {
-    if (apiOpen && !modelsLoaded) {
-      setModelsLoaded(true)
-      fetchModels()
+    if (apiOpen) {
+      fetchProviders()
+        .then((list) => {
+          if (list.length > 0) setProviders(list)
+        })
+        .catch(() => {})
+    }
+  }, [apiOpen])
+
+  useEffect(() => {
+    if (apiOpen) {
+      fetchModels(settings.provider)
         .then((m) => {
           setModels(m)
           if (m.length > 0 && !settings.model) update({ model: m[0] })
         })
-        .catch(() => {})
+        .catch(() => setModels([]))
     }
-  }, [apiOpen, modelsLoaded, settings.model, update])
+  }, [apiOpen, settings.provider, settings.model, update])
 
   const currentModels = fetched?.[settings.provider]?.models?.length
     ? fetched[settings.provider].models
@@ -160,7 +169,7 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
                           onChange={(e) => update({ provider: e.target.value })}
                           className="input-dark w-full"
                         >
-                          {PROVIDERS.map((p) => (
+                          {providers.map((p) => (
                             <option key={p.value} value={p.value}>{p.label}</option>
                           ))}
                         </select>
