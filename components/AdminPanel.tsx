@@ -1,9 +1,9 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ShieldCheck, Plus, Trash2, RefreshCw, ChevronDown } from 'lucide-react'
+import { X, ShieldCheck, Plus, Trash2, Pencil, RefreshCw, ChevronDown } from 'lucide-react'
 import { useState, useCallback, useEffect } from 'react'
-import type { AdminConfig, FetchedProviderModels } from '@/types'
+import type { AdminConfig, AdminProviderInfo, FetchedProviderModels } from '@/types'
 import {
   adminFetchConfig, adminUpsertProvider, adminDeleteProvider,
   adminSetDisabled, adminSetModels, fetchAllModels,
@@ -23,6 +23,7 @@ export function AdminPanel({ open, onClose }: Props) {
   const [status, setStatus] = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [editingKey, setEditingKey] = useState<string | null>(null)
   const [fetched, setFetched] = useState<Record<string, FetchedProviderModels> | null>(null)
   const [checked, setChecked] = useState<Record<string, Set<string>>>({})
 
@@ -67,18 +68,37 @@ export function AdminPanel({ open, onClose }: Props) {
     [token, refresh],
   )
 
-  const addProvider = useCallback(() => {
+  const resetForm = useCallback(() => {
+    setForm(EMPTY_FORM)
+    setEditingKey(null)
+  }, [])
+
+  const saveProvider = useCallback(() => {
     if (!form.key.trim() || !form.label.trim()) {
       setStatus('请填写供应商标识和名称')
       return
     }
-    run(() => adminUpsertProvider(token, { ...form, key: form.key.trim() }), '已添加供应商').then(
-      () => {
-        setForm(EMPTY_FORM)
-        setAddOpen(false)
-      },
-    )
-  }, [form, token, run])
+    run(
+      () => adminUpsertProvider(token, { ...form, key: form.key.trim() }),
+      editingKey ? '已保存修改' : '已添加供应商',
+    ).then(() => {
+      resetForm()
+      setAddOpen(false)
+    })
+  }, [form, editingKey, token, run, resetForm])
+
+  const startEdit = useCallback((k: string, v: AdminProviderInfo) => {
+    setForm({
+      key: k,
+      label: v.label,
+      type: v.type,
+      base_url: v.base_url,
+      api_key: v.api_key,
+      model: v.model,
+    })
+    setEditingKey(k)
+    setAddOpen(true)
+  }, [])
 
   const loadAllModels = useCallback(async () => {
     try {
@@ -215,7 +235,15 @@ export function AdminPanel({ open, onClose }: Props) {
                           </span>
                           <div className="flex gap-1.5 shrink-0">
                             <button
+                              onClick={() => startEdit(k, v)}
+                              title="修改"
+                              className="text-xs px-2.5 py-1 rounded-lg border border-white/[0.08] text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] transition-all"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
                               onClick={() => run(() => adminDeleteProvider(token, k), '已删除')}
+                              title="删除"
                               className="text-xs px-2.5 py-1 rounded-lg border border-red-500/25 text-red-300 hover:bg-red-500/10 transition-all"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -225,7 +253,10 @@ export function AdminPanel({ open, onClose }: Props) {
                       ))}
 
                       <button
-                        onClick={() => setAddOpen(!addOpen)}
+                        onClick={() => {
+                          if (addOpen) resetForm()
+                          setAddOpen(!addOpen)
+                        }}
                         className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors pt-1"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -234,12 +265,18 @@ export function AdminPanel({ open, onClose }: Props) {
                       </button>
                       {addOpen && (
                         <div className="space-y-2 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3.5">
+                          {editingKey && (
+                            <p className="text-xs text-zinc-500">
+                              正在修改供应商 <span className="text-zinc-300">{editingKey}</span>
+                            </p>
+                          )}
                           <div className="flex gap-2">
                             <input
                               value={form.key}
                               onChange={(e) => setForm({ ...form, key: e.target.value })}
                               placeholder="标识，如 gcli"
-                              className="input-dark flex-1 min-w-0"
+                              disabled={!!editingKey}
+                              className={`input-dark flex-1 min-w-0 ${editingKey ? 'opacity-50 cursor-not-allowed' : ''}`}
                             />
                             <input
                               value={form.label}
@@ -275,12 +312,25 @@ export function AdminPanel({ open, onClose }: Props) {
                             placeholder="默认模型（可留空）"
                             className="input-dark w-full"
                           />
-                          <button
-                            onClick={addProvider}
-                            className="w-full px-3 py-2 rounded-xl bg-purple-500/15 border border-purple-500/25 text-purple-300 text-xs font-medium hover:bg-purple-500/25 transition-all"
-                          >
-                            添加
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={saveProvider}
+                              className="flex-1 px-3 py-2 rounded-xl bg-purple-500/15 border border-purple-500/25 text-purple-300 text-xs font-medium hover:bg-purple-500/25 transition-all"
+                            >
+                              {editingKey ? '保存修改' : '添加'}
+                            </button>
+                            {editingKey && (
+                              <button
+                                onClick={() => {
+                                  resetForm()
+                                  setAddOpen(false)
+                                }}
+                                className="px-3 py-2 rounded-xl border border-white/[0.08] text-zinc-400 text-xs hover:text-zinc-200 hover:bg-white/[0.06] transition-all"
+                              >
+                                取消
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )}
                     </section>

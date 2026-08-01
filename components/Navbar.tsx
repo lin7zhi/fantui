@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Settings, Github, Cpu, ShieldCheck } from 'lucide-react'
+import { Settings, Cpu, ShieldCheck } from 'lucide-react'
 
 interface NavbarProps {
   onSettingsToggle: () => void
@@ -27,14 +27,6 @@ export function Navbar({ onSettingsToggle, onAdminToggle }: NavbarProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <a
-            href="https://github.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] transition-all duration-200"
-          >
-            <Github className="w-[18px] h-[18px]" />
-          </a>
           <button
             onClick={onAdminToggle}
             title="管理员设置"
