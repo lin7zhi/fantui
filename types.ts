@@ -36,7 +36,9 @@ export interface JobEvent {
 
 export interface FetchedProviderModels {
   models: string[]
-  error?: string
+  error?: string | null
+  /** 'admin' 表示这批模型来自管理员配置，而非上游实时返回 */
+  source?: 'admin' | null
 }
 
 export interface ProviderDef {

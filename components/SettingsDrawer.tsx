@@ -96,16 +96,28 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
       }
       const result = await fetchAllModels(credentials)
       setFetched(result)
-      const list = result[settings.provider]?.models ?? []
+      const entry = result[settings.provider]
+      let list = entry?.models ?? []
+
+      // 上游拿不到时，退回管理员在后台配置的模型列表
+      if (list.length === 0) {
+        list = await fetchModels(settings.provider).catch(() => [])
+        if (list.length > 0) {
+          setFetched({ ...result, [settings.provider]: { models: list, source: 'admin' } })
+        }
+      }
+
       if (list.length > 0 && !list.includes(settings.model)) update({ model: list[0] })
-      const err = result[settings.provider]?.error
-      setModelStatus(
-        list.length > 0
-          ? `已获取 ${list.length} 个模型`
-          : err
-            ? `获取失败：${err}`
-            : '未获取到模型（检查密钥配置）',
-      )
+
+      if (list.length > 0) {
+        setModelStatus(
+          entry?.source === 'admin' || !entry?.models?.length
+            ? `已加载 ${list.length} 个模型（来自管理员配置）`
+            : `已获取 ${list.length} 个模型`,
+        )
+      } else {
+        setModelStatus(entry?.error ? `获取失败：${entry.error}` : '未获取到模型')
+      }
     } catch {
       setModelStatus('获取失败')
     }
