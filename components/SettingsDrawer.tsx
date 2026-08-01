@@ -60,9 +60,6 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
     [settings, onChange],
   )
 
-  const PROVIDER_LABELS: Record<string, string> =
-    Object.fromEntries(providers.map((p) => [p.value, p.label]))
-
   useEffect(() => {
     if (apiOpen) {
       fetchProviders()
@@ -90,7 +87,7 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
 
   const loadModels = useCallback(async () => {
     try {
-      setModelStatus('正在从各供应商获取...')
+      setModelStatus('正在获取模型...')
       const credentials: Record<string, { api_key?: string; base_url?: string }> = {}
       if (settings.apiKey || settings.baseUrl) {
         credentials[settings.provider] = {}
@@ -99,21 +96,20 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
       }
       const result = await fetchAllModels(credentials)
       setFetched(result)
-      const total = Object.values(result).reduce((n, i) => n + i.models.length, 0)
+      const list = result[settings.provider]?.models ?? []
+      if (list.length > 0 && !list.includes(settings.model)) update({ model: list[0] })
+      const err = result[settings.provider]?.error
       setModelStatus(
-        total > 0
-          ? `已从 ${Object.keys(result).length} 个供应商获取 ${total} 个模型`
-          : '未获取到模型（检查密钥配置）',
+        list.length > 0
+          ? `已获取 ${list.length} 个模型`
+          : err
+            ? `获取失败：${err}`
+            : '未获取到模型（检查密钥配置）',
       )
     } catch {
       setModelStatus('获取失败')
     }
-  }, [settings.provider, settings.apiKey, settings.baseUrl])
-
-  const applyModel = useCallback(
-    (prov: string, m: string) => update({ provider: prov, model: m }),
-    [update],
-  )
+  }, [settings.provider, settings.apiKey, settings.baseUrl, settings.model, update])
 
   return (
     <AnimatePresence>
@@ -232,46 +228,6 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
                           <p className="text-xs text-zinc-600 mt-1.5">{modelStatus}</p>
                         )}
                       </div>
-
-                      {fetched && (
-                        <div className="space-y-3">
-                          <div className="md:max-h-72 md:overflow-y-auto space-y-2 md:pr-1">
-                            {Object.entries(fetched).map(([prov, info]) => (
-                              <div
-                                key={prov}
-                                className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-3"
-                              >
-                                <p className="text-xs font-medium text-zinc-400 mb-2">
-                                  {PROVIDER_LABELS[prov] || prov}
-                                  {info.models.length > 0 && (
-                                    <span className="text-zinc-600">（{info.models.length}）</span>
-                                  )}
-                                </p>
-                                {info.error ? (
-                                  <p className="text-xs text-red-400/80 break-all">{info.error}</p>
-                                ) : (
-                                  <div className="space-y-1">
-                                    {info.models.map((m) => (
-                                      <button
-                                        key={m}
-                                        onClick={() => applyModel(prov, m)}
-                                        title="使用该供应商与模型"
-                                        className={`block w-full text-xs truncate text-left transition-colors ${
-                                          settings.provider === prov && settings.model === m
-                                            ? 'text-purple-300'
-                                            : 'text-zinc-500 hover:text-zinc-200'
-                                        }`}
-                                      >
-                                        {m}
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>
