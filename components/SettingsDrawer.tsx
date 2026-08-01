@@ -165,7 +165,7 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
               </button>
             </div>
 
-            <div className="px-6 py-6 space-y-8">
+            <div className="px-6 pt-6 pb-24 md:pb-6 space-y-8">
               {/* API 设置 */}
               <section>
                 <button
@@ -224,7 +224,7 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
                             <select
                               value={settings.model}
                               onChange={(e) => update({ model: e.target.value })}
-                              className="input-dark flex-1"
+                              className="input-dark flex-1 min-w-0"
                             >
                               {settings.model && !currentModels.includes(settings.model) && (
                                 <option value={settings.model}>{settings.model}</option>
@@ -238,12 +238,12 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
                               value={settings.model}
                               onChange={(e) => update({ model: e.target.value })}
                               placeholder="如 gpt-4o"
-                              className="input-dark flex-1"
+                              className="input-dark flex-1 min-w-0"
                             />
                           )}
                           <button
                             onClick={loadModels}
-                            className="px-3 rounded-xl bg-white/[0.04] border border-white/[0.06] text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.08] transition-all"
+                            className="px-3 shrink-0 rounded-xl bg-white/[0.04] border border-white/[0.06] text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.08] transition-all"
                             title="从所有已配置供应商获取全部模型"
                           >
                             <RefreshCw className="w-4 h-4" />
@@ -256,7 +256,7 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
 
                       {fetched && (
                         <div className="space-y-3">
-                          <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                          <div className="md:max-h-72 md:overflow-y-auto space-y-2 md:pr-1">
                             {Object.entries(fetched).map(([prov, info]) => (
                               <div
                                 key={prov}
@@ -283,7 +283,7 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
                                         <button
                                           onClick={() => applyModel(prov, m)}
                                           title="使用该供应商与模型"
-                                          className={`text-xs truncate text-left transition-colors ${
+                                          className={`text-xs truncate text-left min-w-0 transition-colors ${
                                             settings.provider === prov && settings.model === m
                                               ? 'text-purple-300'
                                               : 'text-zinc-500 hover:text-zinc-200'
