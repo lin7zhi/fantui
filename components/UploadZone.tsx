@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useState, useRef } from 'react'
-import { motion } from 'framer-motion'
-import { Upload, ImagePlus, X, FileArchive } from 'lucide-react'
+import { useCallback, useState, useRef, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Upload, ImagePlus, X, FileArchive, ClipboardPaste } from 'lucide-react'
 
 interface Props {
   files: File[]
@@ -11,7 +11,10 @@ interface Props {
 
 export function UploadZone({ files, onChange }: Props) {
   const [dragging, setDragging] = useState(false)
+  const [pasteHint, setPasteHint] = useState(false)
+  const [pasteFlash, setPasteFlash] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const pasteCounterRef = useRef(0)
 
   const handleFiles = useCallback(
     (incoming: FileList | File[]) => {
@@ -33,6 +36,44 @@ export function UploadZone({ files, onChange }: Props) {
     },
     [handleFiles],
   )
+
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+      const images: File[] = []
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i]
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+          const file = item.getAsFile()
+          if (file) {
+            pasteCounterRef.current += 1
+            const ext = (file.type.split('/')[1] || 'png').replace('jpeg', 'jpg')
+            const renamed = new File(
+              [file],
+              `pasted-${Date.now()}-${pasteCounterRef.current}.${ext}`,
+              { type: file.type },
+            )
+            images.push(renamed)
+          }
+        }
+      }
+      if (images.length) {
+        e.preventDefault()
+        onChange([...files, ...images])
+        setPasteFlash(true)
+        setTimeout(() => setPasteFlash(false), 1200)
+        setPasteHint(false)
+      }
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [files, onChange])
+
+  const handlePasteClick = useCallback(() => {
+    setPasteHint(true)
+    setTimeout(() => setPasteHint(false), 4000)
+  }, [])
 
   const removeFile = useCallback(
     (idx: number) => {
@@ -83,6 +124,43 @@ export function UploadZone({ files, onChange }: Props) {
               支持 JPG、PNG、WebP、BMP、GIF 或 .zip 压缩包
             </p>
           </div>
+
+          <div className="flex items-center gap-3 mt-1">
+            <div className="h-px w-10 bg-white/[0.06]" />
+            <span className="text-[10px] text-zinc-600 uppercase tracking-widest">或</span>
+            <div className="h-px w-10 bg-white/[0.06]" />
+          </div>
+
+          <motion.button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handlePasteClick() }}
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.96 }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium border transition-all ${
+              pasteFlash
+                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                : 'border-white/[0.08] bg-white/[0.03] text-zinc-300 hover:bg-white/[0.06] hover:border-white/[0.15]'
+            }`}
+          >
+            <ClipboardPaste className="w-3.5 h-3.5" />
+            {pasteFlash ? '已粘贴' : '粘贴图片'}
+            <kbd className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-white/[0.06] text-zinc-500 border border-white/[0.06]">
+              Ctrl+V
+            </kbd>
+          </motion.button>
+
+          <AnimatePresence>
+            {pasteHint && (
+              <motion.p
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="text-[11px] text-purple-400/80"
+              >
+                请按 Ctrl + V 粘贴剪贴板中的图片
+              </motion.p>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
 
