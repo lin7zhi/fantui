@@ -97,6 +97,8 @@ export async function expandTags(tags: string, settings: Settings): Promise<stri
       nsfw_max_rolls: settings.nsfwMaxRolls,
       portrait: settings.portraitMode,
       portrait_suffix: settings.portraitSuffix,
+      theater: settings.theaterMode,
+      theater_count: settings.theaterCount,
       enabled_dims: enabledDims,
     }),
   })
@@ -108,4 +110,3 @@ export async function expandTags(tags: string, settings: Settings): Promise<stri
   const data = await res.json()
   return data.result
 }
-

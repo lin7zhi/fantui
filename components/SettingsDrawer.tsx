@@ -5,6 +5,7 @@ import {
   X, ChevronDown, User, Heart, Shirt, Move,
   AlertTriangle, Frame, Mountain, Palette,
   Camera, ShieldOff, RefreshCw,
+  Clapperboard,
 } from 'lucide-react'
 import { useState, useCallback } from 'react'
 import type { Settings } from '@/types'
@@ -215,6 +216,42 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
                     placeholder="自定义人物后缀，如：章鱼"
                     className="input-dark w-full text-sm"
                   />
+                )}
+              </section>
+
+              {/* 剧场模式 */}
+              <section className="glass rounded-2xl p-5 space-y-4 border-amber-500/10">
+                <div className="flex items-center gap-3">
+                  <Clapperboard className="w-4 h-4 text-amber-400" />
+                  <span className="text-sm font-medium text-zinc-200">剧场模式</span>
+                </div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={settings.theaterMode}
+                      onChange={(e) => update({ theaterMode: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-6 rounded-full bg-white/[0.06] peer-checked:bg-amber-500/40 transition-colors" />
+                    <div className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-zinc-400 peer-checked:bg-amber-400 peer-checked:translate-x-4 transition-all" />
+                  </div>
+                  <span className="text-xs text-zinc-500">按故事大纲续写多幕连贯出图提示词(扩写页生效)</span>
+                </label>
+                {settings.theaterMode && (
+                  <div>
+                    <label className="text-xs text-zinc-500 mb-2 block">
+                      分幕数量:{settings.theaterCount}
+                    </label>
+                    <input
+                      type="range"
+                      min={2}
+                      max={12}
+                      value={settings.theaterCount}
+                      onChange={(e) => update({ theaterCount: parseInt(e.target.value) })}
+                      className="w-full h-1.5 rounded-full bg-white/[0.06] appearance-none cursor-pointer accent-amber-500"
+                    />
+                  </div>
                 )}
               </section>
 

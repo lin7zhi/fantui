@@ -16,6 +16,25 @@ export function ExpandView({ settings }: Props) {
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [copiedScene, setCopiedScene] = useState<number | null>(null)
+
+  const theater = settings.theaterMode
+
+  const scenes: { idx: number; text: string }[] = (() => {
+    if (!theater || !result) return []
+    const parts = result.split(/\[\s*SCENE\s*(\d+)\s*\]/i)
+    const out: { idx: number; text: string }[] = []
+    for (let i = 1; i < parts.length - 1; i += 2) {
+      out.push({ idx: parseInt(parts[i]), text: parts[i + 1].trim() })
+    }
+    return out
+  })()
+
+  const handleCopyScene = useCallback((idx: number, text: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedScene(idx)
+    setTimeout(() => setCopiedScene(null), 2000)
+  }, [])
 
   const handleExpand = useCallback(async () => {
     if (!tags.trim()) return
@@ -49,14 +68,17 @@ export function ExpandView({ settings }: Props) {
       {/* 说明 */}
       <div className="glass rounded-2xl p-5 border-l-2 border-purple-500/30">
         <p className="text-sm text-zinc-400 leading-relaxed">
-          输入简单的标签或元素关键词，AI 将根据左侧配置面板中的维度开关和模式设置，
-          扩写为细节饱满的中文自然语言长段落描述。
+          {theater
+            ? `输入一段故事大纲,AI 将按大纲续写为 ${settings.theaterCount} 幕前后连贯的出图提示词,同一角色与画风贯穿全篇,像漫画分镜一样。`
+            : '输入简单的标签或元素关键词,AI 将根据左侧配置面板中的维度开关和模式设置,扩写为细节饱满的中文自然语言长段落描述。'}
         </p>
       </div>
 
       {/* 输入 */}
       <div className="space-y-3">
-        <label className="text-sm font-medium text-zinc-300 block">输入基础标签</label>
+        <label className="text-sm font-medium text-zinc-300 block">
+          {theater ? '输入故事大纲' : '输入基础标签'}
+        </label>
         <textarea
           value={tags}
           onChange={(e) => setTags(e.target.value)}
@@ -133,11 +155,39 @@ export function ExpandView({ settings }: Props) {
                 {copied ? '已复制' : '复制结果'}
               </button>
             </div>
-            <div className="glass rounded-2xl p-6">
-              <p className="text-sm text-zinc-300 font-mono leading-relaxed whitespace-pre-wrap">
-                {result}
-              </p>
-            </div>
+            {theater && scenes.length > 0 ? (
+              <div className="space-y-4">
+                {scenes.map((s) => (
+                  <div key={s.idx} className="glass rounded-2xl p-5 space-y-3 border-amber-500/10">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-amber-400 tracking-wider">
+                        第 {s.idx} 幕
+                      </span>
+                      <button
+                        onClick={() => handleCopyScene(s.idx, s.text)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.04] transition-all"
+                      >
+                        {copiedScene === s.idx ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                        {copiedScene === s.idx ? '已复制' : '复制本幕'}
+                      </button>
+                    </div>
+                    <p className="text-sm text-zinc-300 font-mono leading-relaxed whitespace-pre-wrap">
+                      {s.text}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="glass rounded-2xl p-6">
+                <p className="text-sm text-zinc-300 font-mono leading-relaxed whitespace-pre-wrap">
+                  {result}
+                </p>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

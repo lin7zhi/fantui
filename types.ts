@@ -10,6 +10,8 @@ export interface Settings {
   model: string
   portraitMode: boolean
   portraitSuffix: string
+  theaterMode: boolean
+  theaterCount: number
   nsfwMode: boolean
   nsfwMaxRolls: number
   dimensions: Record<string, boolean>
@@ -41,6 +43,8 @@ export const DEFAULT_SETTINGS: Settings = {
   model: '',
   portraitMode: false,
   portraitSuffix: '',
+  theaterMode: false,
+  theaterCount: 6,
   nsfwMode: false,
   nsfwMaxRolls: 3,
   dimensions: {
