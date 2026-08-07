@@ -2,23 +2,25 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ScanSearch, Sparkles } from 'lucide-react'
+import { ScanSearch, Sparkles, Film } from 'lucide-react'
 
 import { Background } from '@/components/Background'
 import { Navbar } from '@/components/Navbar'
 import { SettingsDrawer } from '@/components/SettingsDrawer'
 import { AnalyzeView } from '@/components/AnalyzeView'
 import { ExpandView } from '@/components/ExpandView'
+import { H3View } from '@/components/H3View'
 import { DEFAULT_SETTINGS } from '@/types'
 import type { Settings } from '@/types'
 
 const TABS = [
   { key: 'analyze' as const, label: '图像反推', icon: ScanSearch },
   { key: 'expand' as const, label: '标签扩写', icon: Sparkles },
+  { key: 'h3' as const, label: 'H3视频', icon: Film },
 ]
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'analyze' | 'expand'>('analyze')
+  const [activeTab, setActiveTab] = useState<'analyze' | 'expand' | 'h3'>('analyze')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -95,10 +97,14 @@ export default function Home() {
 
         {/* Tab 内容 */}
         <AnimatePresence mode="wait">
-          {activeTab === 'analyze' ? (
+          {activeTab === 'analyze' && (
             <AnalyzeView key="analyze" settings={settings} onSettingsChange={setSettings} />
-          ) : (
+          )}
+          {activeTab === 'expand' && (
             <ExpandView key="expand" settings={settings} />
+          )}
+          {activeTab === 'h3' && (
+            <H3View key="h3" settings={settings} />
           )}
         </AnimatePresence>
       </main>

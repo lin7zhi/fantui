@@ -110,3 +110,51 @@ export async function expandTags(tags: string, settings: Settings): Promise<stri
   const data = await res.json()
   return data.result
 }
+
+export interface H3Mode {
+  key: string
+  label: string
+}
+
+export async function fetchH3Modes(): Promise<H3Mode[]> {
+  const res = await fetch(`${API}/api/h3/modes`)
+  if (!res.ok) throw new Error('Failed to fetch H3 modes')
+  const data = await res.json()
+  return data.modes || []
+}
+
+export async function generateH3Video(
+  files: File[],
+  opts: {
+    mode: string
+    brief: string
+    duration: number
+    settings: Settings
+  },
+): Promise<{ mode: string; imageCount: number; result: string }> {
+  const { mode, brief, duration, settings } = opts
+  const formData = new FormData()
+  files.forEach((f) => formData.append('files', f))
+  formData.append(
+    'settings',
+    JSON.stringify({
+      mode,
+      brief,
+      duration,
+      provider: settings.provider,
+      api_key: settings.apiKey || null,
+      base_url: settings.baseUrl || null,
+      model: settings.model || null,
+      nsfw: settings.nsfwMode,
+      nsfw_max_rolls: settings.nsfwMaxRolls,
+    }),
+  )
+
+  const res = await fetch(`${API}/api/h3/video`, { method: 'POST', body: formData })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(text || res.statusText)
+  }
+  const data = await res.json()
+  return { mode: data.mode, imageCount: data.image_count, result: data.result }
+}
