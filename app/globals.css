@@ -85,12 +85,16 @@
   opacity: 1;
 }
 
-/* ── Input styling ── */
-.input-dark {
-  @apply bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3
-         text-sm text-zinc-200 placeholder-zinc-600
-         focus:outline-none focus:border-purple-500/40 focus:bg-white/[0.05]
-         transition-all duration-200;
+/* ── Input styling ──
+   放进 components 层，这样 pl-10 之类的工具类才能覆盖这里的 px-4
+   （否则带图标的输入框会出现图标压字） */
+@layer components {
+  .input-dark {
+    @apply bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3
+           text-sm text-zinc-200 placeholder-zinc-600
+           focus:outline-none focus:border-purple-500/40 focus:bg-white/[0.05]
+           transition-all duration-200;
+  }
 }
 
 /* ── Progress bar ── */
