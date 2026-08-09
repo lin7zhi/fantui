@@ -114,7 +114,7 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
             className="fixed right-0 top-0 bottom-0 z-[70] w-full max-w-md bg-[#0a0a0a] border-l border-white/[0.06] overflow-y-auto"
           >
-            <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-5 bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-white/[0.04]">
+            <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-white/[0.04]">
               <h2 className="text-lg font-semibold text-zinc-200">配置面板</h2>
               <button
                 onClick={onClose}
@@ -124,7 +124,7 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
               </button>
             </div>
 
-            <div className="px-6 py-6 space-y-8">
+            <div className="px-4 sm:px-6 py-5 sm:py-6 space-y-7 sm:space-y-8 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
               {/* API 设置 */}
               <section>
                 <button
@@ -184,30 +184,33 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
 
                       <div>
                         <label className="text-xs text-zinc-500 mb-1.5 block">模型选择</label>
-                        <div className="flex gap-2">
-                          {models.length > 0 ? (
-                            <select
-                              value={settings.model}
-                              onChange={(e) => update({ model: e.target.value })}
-                              className="input-dark flex-1"
-                            >
-                              {models.map((m) => (
-                                <option key={m} value={m}>{m}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <input
-                              value={settings.model}
-                              onChange={(e) => update({ model: e.target.value })}
-                              placeholder="如 gpt-4o"
-                              className="input-dark flex-1"
-                            />
-                          )}
+                        <div className="flex items-stretch gap-2">
+                          <div className="flex-1 min-w-0">
+                            {models.length > 0 ? (
+                              <select
+                                value={settings.model}
+                                onChange={(e) => update({ model: e.target.value })}
+                                className="input-dark w-full truncate"
+                              >
+                                {models.map((m) => (
+                                  <option key={m} value={m}>{m}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                value={settings.model}
+                                onChange={(e) => update({ model: e.target.value })}
+                                placeholder="如 gpt-4o"
+                                className="input-dark w-full"
+                              />
+                            )}
+                          </div>
                           <button
                             onClick={loadModels}
                             disabled={loadingModels}
-                            className="px-3 rounded-xl bg-white/[0.04] border border-white/[0.06] text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.08] disabled:opacity-40 transition-all"
+                            className="shrink-0 w-12 flex items-center justify-center rounded-xl bg-white/[0.04] border border-white/[0.06] text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.08] disabled:opacity-40 transition-all"
                             title="拉取模型列表（填了自己的密钥则用你的接口）"
+                            aria-label="刷新模型列表"
                           >
                             <RefreshCw className={`w-4 h-4 ${loadingModels ? 'animate-spin' : ''}`} />
                           </button>
@@ -230,7 +233,7 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
               </section>
 
               {/* 肖像模式 */}
-              <section className="glass rounded-2xl p-5 space-y-4">
+              <section className="glass rounded-2xl p-4 sm:p-5 space-y-4">
                 <div className="flex items-center gap-3">
                   <Camera className="w-4 h-4 text-purple-400" />
                   <span className="text-sm font-medium text-zinc-200">肖像标注模式</span>
@@ -259,7 +262,7 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
               </section>
 
               {/* 剧场模式 */}
-              <section className="glass rounded-2xl p-5 space-y-4 border-amber-500/10">
+              <section className="glass rounded-2xl p-4 sm:p-5 space-y-4 border-amber-500/10">
                 <div className="flex items-center gap-3">
                   <Clapperboard className="w-4 h-4 text-amber-400" />
                   <span className="text-sm font-medium text-zinc-200">剧场模式</span>
@@ -295,7 +298,7 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
               </section>
 
               {/* NSFW 模式 */}
-              <section className="glass rounded-2xl p-5 space-y-4 border-red-500/10">
+              <section className="glass rounded-2xl p-4 sm:p-5 space-y-4 border-red-500/10">
                 <div className="flex items-center gap-3">
                   <ShieldOff className="w-4 h-4 text-red-400" />
                   <span className="text-sm font-medium text-zinc-200">NSFW 无限制模式</span>
@@ -345,7 +348,7 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
                     <button
                       key={key}
                       onClick={() => toggleDim(key)}
-                      className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm transition-all duration-200 ${
+                      className={`flex items-center gap-2 px-3 sm:px-3.5 py-2.5 rounded-xl text-sm transition-all duration-200 ${
                         settings.dimensions[key]
                           ? 'bg-purple-500/10 border border-purple-500/20 text-purple-300'
                           : 'bg-white/[0.02] border border-white/[0.04] text-zinc-600 hover:text-zinc-400 hover:bg-white/[0.04]'

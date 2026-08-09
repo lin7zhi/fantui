@@ -117,15 +117,15 @@ export function H3View({ settings }: Props) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      className="space-y-8"
+      className="space-y-6 sm:space-y-8"
     >
       {/* 说明 */}
-      <div className="glass rounded-2xl p-5 border-l-2 border-cyan-500/30">
+      <div className="glass rounded-2xl p-4 sm:p-5 border-l-2 border-cyan-500/30">
         <p className="text-sm text-zinc-400 leading-relaxed">
           上传参考图 / 参考音频并描述剧情，基于 MiniMax H3 提示词规范生成结构化视频提示词。
           Ref2VA 会把每张图映射为 <span className="font-mono text-cyan-300">&lt;Picture N&gt;</span>、
           每条音频映射为 <span className="font-mono text-cyan-300">&lt;Audio N&gt;</span>，
-          输出 <span className="font-mono text-cyan-300">subject_definitions / summary / retention_analysis / detailed_description / overall_soundscape / non_diegetic_music</span> 六段。
+          输出 <span className="font-mono text-cyan-300 break-all">subject_definitions / summary / retention_analysis / detailed_description / overall_soundscape / non_diegetic_music</span> 六段。
         </p>
       </div>
 
@@ -159,7 +159,7 @@ export function H3View({ settings }: Props) {
             onChange={(e) => setDuration(parseFloat(e.target.value))}
             className="w-full accent-cyan-500"
           />
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {DURATION_PRESETS.map((d) => (
               <button
                 key={d}
@@ -182,14 +182,14 @@ export function H3View({ settings }: Props) {
       <button
         type="button"
         onClick={() => setNsfw((v) => !v)}
-        className={`w-full flex items-center justify-between gap-3 rounded-2xl px-5 py-4 border transition-all ${
+        className={`w-full flex items-center justify-between gap-3 rounded-2xl px-4 sm:px-5 py-3.5 sm:py-4 border transition-all ${
           nsfw
             ? 'border-rose-500/40 bg-rose-500/[0.06]'
             : 'border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04]'
         }`}
       >
-        <span className="flex items-center gap-3">
-          <ShieldAlert className={`w-5 h-5 ${nsfw ? 'text-rose-400' : 'text-zinc-500'}`} />
+        <span className="flex items-center gap-3 min-w-0">
+          <ShieldAlert className={`w-5 h-5 shrink-0 ${nsfw ? 'text-rose-400' : 'text-zinc-500'}`} />
           <span className="text-left">
             <span className={`block text-sm font-medium ${nsfw ? 'text-rose-200' : 'text-zinc-300'}`}>
               破限模式 (18+)
@@ -200,7 +200,7 @@ export function H3View({ settings }: Props) {
           </span>
         </span>
         <span
-          className={`relative w-11 h-6 rounded-full transition-colors ${
+          className={`relative w-11 h-6 shrink-0 rounded-full transition-colors ${
             nsfw ? 'bg-rose-500/70' : 'bg-white/[0.12]'
           }`}
         >
@@ -261,13 +261,13 @@ export function H3View({ settings }: Props) {
           disabled={processing}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className="relative px-10 py-4 rounded-2xl font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all overflow-hidden group"
+          className="relative w-full sm:w-auto px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all overflow-hidden group"
           style={{
             background: 'linear-gradient(135deg, #06b6d4, #6366f1)',
             boxShadow: '0 8px 32px rgba(6,182,212,0.3)',
           }}
         >
-          <span className="relative z-10 flex items-center gap-2.5">
+          <span className="relative z-10 flex items-center justify-center gap-2.5">
             {processing ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -291,7 +291,7 @@ export function H3View({ settings }: Props) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="glass rounded-2xl p-5 border-red-500/20 flex items-start gap-3"
+            className="glass rounded-2xl p-4 sm:p-5 border-red-500/20 flex items-start gap-3"
           >
             <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
             <p className="text-sm text-red-300 whitespace-pre-wrap">{error}</p>
@@ -307,7 +307,7 @@ export function H3View({ settings }: Props) {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-3"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-medium text-zinc-300">
                 H3 视频提示词
                 {user && (
@@ -331,8 +331,8 @@ export function H3View({ settings }: Props) {
                 {copied ? '已复制' : '复制结果'}
               </button>
             </div>
-            <div className="glass rounded-2xl p-6">
-              <p className="text-sm text-zinc-300 font-mono leading-relaxed whitespace-pre-wrap">
+            <div className="glass rounded-2xl p-4 sm:p-6">
+              <p className="text-sm text-zinc-300 font-mono leading-relaxed whitespace-pre-wrap break-words">
                 {result}
               </p>
             </div>

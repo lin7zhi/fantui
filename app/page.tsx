@@ -58,24 +58,24 @@ export default function Home() {
         onAuthToggle={() => setAuthOpen(true)}
       />
 
-      <main className="relative z-10 max-w-4xl mx-auto px-6 pt-28 pb-20">
+      <main className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 pt-24 sm:pt-28 pb-16 sm:pb-20">
         {/* 主标题 */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          className="text-center mb-16"
+          className="text-center mb-10 sm:mb-16"
         >
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-none">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-none">
             <span className="gradient-text">视觉</span>
-            <span className="text-zinc-500 mx-3 font-light">/</span>
+            <span className="text-zinc-500 mx-2 sm:mx-3 font-light">/</span>
             <span className="gradient-text">语言</span>
           </h1>
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="mt-5 text-zinc-500 text-lg max-w-lg mx-auto leading-relaxed"
+            className="mt-4 sm:mt-5 text-zinc-500 text-sm sm:text-lg max-w-lg mx-auto leading-relaxed"
           >
             图像反推智能提示词，并发处理、断点续跑、标签扩写、H3 视频提示词，全部结果自动留档 24 小时
           </motion.p>
@@ -86,9 +86,9 @@ export default function Home() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15, duration: 0.5 }}
-          className="flex justify-center mb-12"
+          className="flex justify-center mb-8 sm:mb-12"
         >
-          <div className="relative inline-flex flex-wrap justify-center gap-1 p-1.5 rounded-2xl glass">
+          <div className="relative inline-flex flex-wrap justify-center gap-1 p-1 sm:p-1.5 rounded-2xl glass max-w-full">
             <div
               className="absolute rounded-xl bg-white/[0.06] tab-indicator"
               style={{
@@ -107,11 +107,11 @@ export default function Home() {
                   key={tab.key}
                   ref={(el) => { tabRefs.current[idx] = el }}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`relative z-10 flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-medium transition-colors duration-200 ${
+                  className={`relative z-10 flex items-center gap-1.5 sm:gap-2.5 px-3 sm:px-5 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-medium transition-colors duration-200 ${
                     active ? 'text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-4 h-4 shrink-0" />
                   {tab.label}
                 </button>
               )

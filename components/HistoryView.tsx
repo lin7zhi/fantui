@@ -5,10 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   History, Copy, Check, Trash2, RefreshCw, Loader2, AlertCircle,
   ScanSearch, Sparkles, Film, Clapperboard, LogIn, ChevronDown, Clock,
+  X,
 } from 'lucide-react'
 import {
-  fetchRecords, fetchRecord, deleteRecord, clearRecords,
-  type PromptRecord, type RecordKind, type RecordStats,
+  fetchRecords, fetchRecord, deleteRecord, clearRecords, getRecordImageUrl,
+  type PromptRecord, type RecordImage, type RecordKind, type RecordStats,
 } from '@/lib/api'
 import { useAuth } from '@/lib/useAuth'
 
@@ -43,6 +44,39 @@ function remainingText(expiresAt: number) {
   return hours > 0 ? `${hours} 小时 ${minutes} 分后清除` : `${minutes} 分后清除`
 }
 
+/** 记录卡片上的缩略图条：手机端也能一眼看到当时上传的图 */
+function ImageStrip({
+  images, onPick,
+}: { images?: RecordImage[]; onPick: (img: RecordImage) => void }) {
+  if (!images || images.length === 0) return null
+  const shown = images.slice(0, 4)
+  return (
+    <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+      {shown.map((img) => (
+        <button
+          key={img.id}
+          onClick={() => onPick(img)}
+          title={img.filename}
+          className="relative shrink-0 w-16 h-16 rounded-xl overflow-hidden border border-white/[0.06] bg-white/[0.02]"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={getRecordImageUrl(img.id)}
+            alt={img.filename}
+            loading="lazy"
+            className="w-full h-full object-cover"
+          />
+        </button>
+      ))}
+      {images.length > shown.length && (
+        <span className="shrink-0 w-16 h-16 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center justify-center text-[11px] text-zinc-500">
+          +{images.length - shown.length}
+        </span>
+      )}
+    </div>
+  )
+}
+
 export function HistoryView({ onRequireLogin }: Props) {
   const { user, refresh: refreshAuth } = useAuth()
   const [filter, setFilter] = useState<RecordKind | 'all'>('all')
@@ -53,6 +87,7 @@ export function HistoryView({ onRequireLogin }: Props) {
   const [expanded, setExpanded] = useState<Record<string, string>>({})
   const [openId, setOpenId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [lightbox, setLightbox] = useState<RecordImage | null>(null)
 
   const load = useCallback(async () => {
     if (!user) {
@@ -138,7 +173,7 @@ export function HistoryView({ onRequireLogin }: Props) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        className="glass rounded-2xl p-10 text-center space-y-4"
+        className="glass rounded-2xl p-6 sm:p-10 text-center space-y-4"
       >
         <History className="w-10 h-10 mx-auto text-zinc-600" />
         <p className="text-sm text-zinc-400">
@@ -164,7 +199,7 @@ export function HistoryView({ onRequireLogin }: Props) {
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className="space-y-6"
     >
-      <div className="glass rounded-2xl p-5 border-l-2 border-emerald-500/30 flex items-start gap-3">
+      <div className="glass rounded-2xl p-4 sm:p-5 border-l-2 border-emerald-500/30 flex items-start gap-3">
         <Clock className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
         <p className="text-sm text-zinc-400 leading-relaxed">
           <span className="text-zinc-200">{user.username}</span> 的词记录：反推、扩写、剧场分幕、H3
@@ -181,7 +216,7 @@ export function HistoryView({ onRequireLogin }: Props) {
             <button
               key={f.key}
               onClick={() => { setFilter(f.key); setOpenId(null) }}
-              className={`px-4 py-2 rounded-xl text-xs font-medium border transition-all ${
+              className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-medium border transition-all ${
                 active
                   ? 'bg-white/[0.08] border-white/[0.12] text-zinc-100'
                   : 'bg-white/[0.02] border-white/[0.04] text-zinc-500 hover:text-zinc-300'
@@ -194,7 +229,7 @@ export function HistoryView({ onRequireLogin }: Props) {
             </button>
           )
         })}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-2">
           <button
             onClick={load}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-zinc-400 hover:text-zinc-200 bg-white/[0.03] border border-white/[0.04] transition-all"
@@ -221,7 +256,7 @@ export function HistoryView({ onRequireLogin }: Props) {
       )}
 
       {!loading && records.length === 0 && (
-        <div className="glass rounded-2xl p-10 text-center text-sm text-zinc-500">
+        <div className="glass rounded-2xl p-6 sm:p-10 text-center text-sm text-zinc-500">
           暂无记录，去生成一条试试。
         </div>
       )}
@@ -241,8 +276,8 @@ export function HistoryView({ onRequireLogin }: Props) {
                 exit={{ opacity: 0, height: 0 }}
                 className="glass rounded-2xl overflow-hidden"
               >
-                <div className="p-4 space-y-2">
-                  <div className="flex items-center gap-2.5">
+                <div className="p-3.5 sm:p-4 space-y-2">
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                     <Icon className={`w-4 h-4 ${meta.color} shrink-0`} />
                     <span className={`text-xs font-medium ${meta.color}`}>{meta.label}</span>
                     <span className="text-xs text-zinc-600 font-mono">{formatTime(rec.created_at)}</span>
@@ -251,9 +286,11 @@ export function HistoryView({ onRequireLogin }: Props) {
                     </span>
                   </div>
 
-                  <p className="text-sm text-zinc-300 truncate">
+                  <p className="text-sm text-zinc-300 break-words line-clamp-2">
                     {rec.title || rec.input || '(无标题)'}
                   </p>
+
+                  <ImageStrip images={rec.images} onPick={setLightbox} />
 
                   {!open && rec.preview && (
                     <p className="text-xs text-zinc-500 font-mono line-clamp-2 whitespace-pre-wrap">
@@ -261,7 +298,7 @@ export function HistoryView({ onRequireLogin }: Props) {
                     </p>
                   )}
 
-                  <div className="flex items-center gap-2 pt-1">
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
                     <button
                       onClick={() => toggle(rec)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 bg-white/[0.03] border border-white/[0.04] transition-all"
@@ -298,16 +335,43 @@ export function HistoryView({ onRequireLogin }: Props) {
                       exit={{ height: 0, opacity: 0 }}
                       className="overflow-hidden border-t border-white/[0.04]"
                     >
-                      <div className="p-4 space-y-3">
+                      <div className="p-3.5 sm:p-4 space-y-3">
+                        {rec.images && rec.images.length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-[11px] uppercase tracking-wider text-zinc-600">
+                              原图 · {rec.images.length} 张
+                            </p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                              {rec.images.map((img) => (
+                                <button
+                                  key={img.id}
+                                  onClick={() => setLightbox(img)}
+                                  className="group relative rounded-xl overflow-hidden border border-white/[0.06] bg-white/[0.02]"
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={getRecordImageUrl(img.id)}
+                                    alt={img.filename}
+                                    loading="lazy"
+                                    className="w-full aspect-square object-cover transition-transform group-hover:scale-[1.03]"
+                                  />
+                                  <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1 text-[10px] text-zinc-300 truncate text-left">
+                                    {img.filename}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         {rec.input && (
                           <div className="space-y-1">
                             <p className="text-[11px] uppercase tracking-wider text-zinc-600">输入</p>
-                            <p className="text-xs text-zinc-400 font-mono whitespace-pre-wrap">{rec.input}</p>
+                            <p className="text-xs text-zinc-400 font-mono whitespace-pre-wrap break-words">{rec.input}</p>
                           </div>
                         )}
                         <div className="space-y-1">
                           <p className="text-[11px] uppercase tracking-wider text-zinc-600">输出</p>
-                          <p className="text-sm text-zinc-300 font-mono leading-relaxed whitespace-pre-wrap">
+                          <p className="text-sm text-zinc-300 font-mono leading-relaxed whitespace-pre-wrap break-words">
                             {expanded[rec.id] ?? '加载中...'}
                           </p>
                         </div>
@@ -325,6 +389,44 @@ export function HistoryView({ onRequireLogin }: Props) {
           })}
         </AnimatePresence>
       </div>
+
+      {/* 图片大图预览 */}
+      <AnimatePresence>
+        {lightbox && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setLightbox(null)}
+            className="fixed inset-0 z-[95] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.97, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative max-w-full max-h-full"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={getRecordImageUrl(lightbox.id)}
+                alt={lightbox.filename}
+                className="max-w-full max-h-[80vh] rounded-2xl object-contain"
+              />
+              <p className="mt-2 text-center text-xs text-zinc-400 break-all">
+                {lightbox.filename}
+              </p>
+              <button
+                onClick={() => setLightbox(null)}
+                className="absolute -top-3 -right-3 w-9 h-9 rounded-full bg-black/80 border border-white/[0.1] flex items-center justify-center text-zinc-300 hover:text-white"
+                aria-label="关闭大图"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }

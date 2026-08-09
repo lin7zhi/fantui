@@ -17,27 +17,29 @@ export function Navbar({ onSettingsToggle, onAuthToggle }: NavbarProps) {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed top-0 left-0 right-0 z-50 px-6 py-4"
+      className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-6 py-4"
     >
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center shrink-0">
             <Cpu className="w-5 h-5 text-white" />
           </div>
-          <span className="text-lg font-semibold tracking-tight text-zinc-200">
+          <span className="text-base sm:text-lg font-semibold tracking-tight text-zinc-200 truncate">
             Nine7反推助手
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {user ? (
-            <div className="flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-              <User className="w-3.5 h-3.5 text-purple-300" />
-              <span className="text-xs text-zinc-300 max-w-[7rem] truncate">{user.username}</span>
+            <div className="flex items-center gap-1.5 pl-2.5 pr-1 sm:pl-3 sm:pr-1.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06] min-w-0">
+              <User className="w-3.5 h-3.5 text-purple-300 shrink-0" />
+              <span className="text-xs text-zinc-300 max-w-[4.5rem] sm:max-w-[7rem] truncate">
+                {user.username}
+              </span>
               <button
                 onClick={logout}
                 title="退出登录"
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-zinc-500 hover:text-red-300 hover:bg-white/[0.05] transition-all"
+                className="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-zinc-500 hover:text-red-300 hover:bg-white/[0.05] transition-all"
               >
                 <LogOut className="w-3.5 h-3.5" />
               </button>
@@ -45,7 +47,7 @@ export function Navbar({ onSettingsToggle, onAuthToggle }: NavbarProps) {
           ) : (
             <button
               onClick={onAuthToggle}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium text-zinc-300 bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] transition-all"
+              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-medium text-zinc-300 bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] transition-all shrink-0"
             >
               <LogIn className="w-3.5 h-3.5" />
               登录
@@ -55,13 +57,13 @@ export function Navbar({ onSettingsToggle, onAuthToggle }: NavbarProps) {
             href="https://github.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] transition-all duration-200"
+            className="hidden sm:flex w-10 h-10 rounded-xl items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] transition-all duration-200"
           >
             <Github className="w-[18px] h-[18px]" />
           </a>
           <button
             onClick={onSettingsToggle}
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] transition-all duration-200"
+            className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] transition-all duration-200"
           >
             <Settings className="w-[18px] h-[18px]" />
           </button>

@@ -97,7 +97,7 @@ export function UploadZone({ files, onChange }: Props) {
           dragging
             ? 'border-purple-500/60 bg-purple-500/[0.04]'
             : 'border-white/[0.08] hover:border-white/[0.15] bg-white/[0.01] hover:bg-white/[0.02]'
-        } ${files.length === 0 ? 'py-16' : 'py-8'}`}
+        } ${files.length === 0 ? 'py-10 sm:py-16' : 'py-6 sm:py-8'}`}
       >
         <input
           ref={inputRef}
@@ -108,7 +108,7 @@ export function UploadZone({ files, onChange }: Props) {
           className="hidden"
         />
 
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-3 sm:gap-4 px-4">
           <div
             className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${
               dragging ? 'bg-purple-500/20 text-purple-400' : 'bg-white/[0.04] text-zinc-500'
@@ -118,7 +118,7 @@ export function UploadZone({ files, onChange }: Props) {
           </div>
           <div className="text-center">
             <p className="text-sm font-medium text-zinc-300">
-              {dragging ? '松开鼠标上传' : '拖拽图片或 ZIP 压缩包到此处'}
+              {dragging ? '松开鼠标上传' : '点击选择，或拖拽图片 / ZIP 到此处'}
             </p>
             <p className="text-xs text-zinc-600 mt-1">
               支持 JPG、PNG、WebP、BMP、GIF 或 .zip 压缩包
@@ -169,7 +169,7 @@ export function UploadZone({ files, onChange }: Props) {
           <p className="text-xs text-zinc-500 font-medium">
             已选择 {files.length} 个文件
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {previews.map((file, idx) => (
               <motion.div
                 key={`${file.name}-${idx}`}
@@ -195,7 +195,7 @@ export function UploadZone({ files, onChange }: Props) {
                 </div>
                 <button
                   onClick={(e) => { e.stopPropagation(); removeFile(idx) }}
-                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-white"
+                  className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/70 flex items-center justify-center text-zinc-300 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:text-white"
                 >
                   <X className="w-3 h-3" />
                 </button>

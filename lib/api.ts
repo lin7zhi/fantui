@@ -1,5 +1,5 @@
 import type { Settings, AnalysisResult, JobEvent } from '@/types'
-import { authHeaders, clearSession, type AuthUser } from '@/lib/auth'
+import { authHeaders, clearSession, getToken, type AuthUser } from '@/lib/auth'
 
 const API = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -102,6 +102,14 @@ export function changePassword(oldPassword: string, newPassword: string) {
 /* ───────── 词记录 ───────── */
 export type RecordKind = 'analyze' | 'expand' | 'theater' | 'h3'
 
+export interface RecordImage {
+  id: string
+  filename: string
+  mime: string
+  width: number
+  height: number
+}
+
 export interface PromptRecord {
   id: string
   kind: RecordKind
@@ -110,8 +118,16 @@ export interface PromptRecord {
   output?: string
   preview?: string
   meta: Record<string, unknown>
+  images?: RecordImage[]
   created_at: number
   expires_at: number
+}
+
+/** 记录里的图片直接给 <img src> 用，走 query token（img 标签带不了请求头） */
+export function getRecordImageUrl(imageId: string): string {
+  const token = getToken()
+  const qs = token ? `?token=${encodeURIComponent(token)}` : ''
+  return `${API}/api/records/images/${imageId}${qs}`
 }
 
 export function fetchRecords(kind?: RecordKind) {

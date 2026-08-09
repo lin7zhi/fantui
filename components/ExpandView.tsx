@@ -66,10 +66,10 @@ export function ExpandView({ settings }: Props) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      className="space-y-8"
+      className="space-y-6 sm:space-y-8"
     >
       {/* 说明 */}
-      <div className="glass rounded-2xl p-5 border-l-2 border-purple-500/30">
+      <div className="glass rounded-2xl p-4 sm:p-5 border-l-2 border-purple-500/30">
         <p className="text-sm text-zinc-400 leading-relaxed">
           {theater
             ? `输入一段故事大纲,AI 将按大纲续写为 ${settings.theaterCount} 幕前后连贯的出图提示词,同一角色与画风贯穿全篇,像漫画分镜一样。`
@@ -98,13 +98,13 @@ export function ExpandView({ settings }: Props) {
           disabled={processing || !tags.trim()}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className="relative px-10 py-4 rounded-2xl font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all overflow-hidden group"
+          className="relative w-full sm:w-auto px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all overflow-hidden group"
           style={{
             background: 'linear-gradient(135deg, #a855f7, #6366f1)',
             boxShadow: '0 8px 32px rgba(168,85,247,0.3)',
           }}
         >
-          <span className="relative z-10 flex items-center gap-2.5">
+          <span className="relative z-10 flex items-center justify-center gap-2.5">
             {processing ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -128,7 +128,7 @@ export function ExpandView({ settings }: Props) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="glass rounded-2xl p-5 border-red-500/20 flex items-start gap-3"
+            className="glass rounded-2xl p-4 sm:p-5 border-red-500/20 flex items-start gap-3"
           >
             <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
             <p className="text-sm text-red-300">{error}</p>
@@ -144,7 +144,7 @@ export function ExpandView({ settings }: Props) {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-3"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-medium text-zinc-300">
                 扩写结果
                 {user && (
@@ -166,7 +166,7 @@ export function ExpandView({ settings }: Props) {
             {theater && scenes.length > 0 ? (
               <div className="space-y-4">
                 {scenes.map((s) => (
-                  <div key={s.idx} className="glass rounded-2xl p-5 space-y-3 border-amber-500/10">
+                  <div key={s.idx} className="glass rounded-2xl p-4 sm:p-5 space-y-3 border-amber-500/10">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-amber-400 tracking-wider">
                         第 {s.idx} 幕
@@ -183,15 +183,15 @@ export function ExpandView({ settings }: Props) {
                         {copiedScene === s.idx ? '已复制' : '复制本幕'}
                       </button>
                     </div>
-                    <p className="text-sm text-zinc-300 font-mono leading-relaxed whitespace-pre-wrap">
+                    <p className="text-sm text-zinc-300 font-mono leading-relaxed whitespace-pre-wrap break-words">
                       {s.text}
                     </p>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="glass rounded-2xl p-6">
-                <p className="text-sm text-zinc-300 font-mono leading-relaxed whitespace-pre-wrap">
+              <div className="glass rounded-2xl p-4 sm:p-6">
+                <p className="text-sm text-zinc-300 font-mono leading-relaxed whitespace-pre-wrap break-words">
                   {result}
                 </p>
               </div>

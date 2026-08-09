@@ -53,7 +53,7 @@ export function AudioRefZone({ refs, onChange, roles, defaultRole, accept, canHe
           if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files)
         }}
         onClick={() => inputRef.current?.click()}
-        className={`rounded-2xl border border-dashed px-5 py-6 text-center cursor-pointer transition-all ${
+        className={`rounded-2xl border border-dashed px-4 sm:px-5 py-5 sm:py-6 text-center cursor-pointer transition-all ${
           dragging
             ? 'border-cyan-500/50 bg-cyan-500/[0.05]'
             : 'border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04]'
@@ -98,15 +98,15 @@ export function AudioRefZone({ refs, onChange, roles, defaultRole, accept, canHe
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, height: 0 }}
-            className="glass rounded-2xl p-4 space-y-3"
+            className="glass rounded-2xl p-3.5 sm:p-4 space-y-3"
           >
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
               <AudioLines className="w-4 h-4 text-cyan-300 shrink-0" />
               <span className="text-xs font-mono text-cyan-300 shrink-0">
                 &lt;Audio {idx + 1}&gt;
               </span>
-              <span className="text-xs text-zinc-400 truncate">{ref.file.name}</span>
-              <span className="text-[11px] text-zinc-600 font-mono ml-auto shrink-0">
+              <span className="text-xs text-zinc-400 truncate min-w-0 flex-1">{ref.file.name}</span>
+              <span className="text-[11px] text-zinc-600 font-mono shrink-0">
                 {(ref.file.size / 1024 / 1024).toFixed(2)} MB
               </span>
               <button

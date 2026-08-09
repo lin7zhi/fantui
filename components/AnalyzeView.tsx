@@ -95,10 +95,10 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      className="space-y-8"
+      className="space-y-6 sm:space-y-8"
     >
       {/* 控制区 */}
-      <div className="glass rounded-2xl p-5">
+      <div className="glass rounded-2xl p-4 sm:p-5">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
           <div>
             <label className="text-xs text-zinc-500 mb-1.5 block">单次合并图片数</label>
@@ -128,7 +128,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
             />
             <span className="text-xs text-zinc-500 mt-1 block">{settings.maxConcurrent} 路并发</span>
           </div>
-          <div className="flex items-end">
+          <div className="flex items-end pt-1 sm:pt-0">
             <label className="flex items-center gap-2.5 cursor-pointer">
               <div className="relative">
                 <input
@@ -171,13 +171,13 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
           disabled={processing || !files.length}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className="relative px-10 py-4 rounded-2xl font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all overflow-hidden group"
+          className="relative w-full sm:w-auto px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all overflow-hidden group"
           style={{
             background: 'linear-gradient(135deg, #a855f7, #6366f1)',
             boxShadow: '0 8px 32px rgba(168,85,247,0.3)',
           }}
         >
-          <span className="relative z-10 flex items-center gap-2.5">
+          <span className="relative z-10 flex items-center justify-center gap-2.5">
             {processing ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -201,7 +201,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="glass rounded-2xl p-5 space-y-3"
+            className="glass rounded-2xl p-4 sm:p-5 space-y-3"
           >
             <div className="flex items-center justify-between">
               <p className="text-sm text-zinc-400">{progressMsg}</p>
@@ -229,7 +229,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="glass rounded-2xl p-5 border-red-500/20 flex items-start gap-3"
+            className="glass rounded-2xl p-4 sm:p-5 border-red-500/20 flex items-start gap-3"
           >
             <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
             <div>
@@ -264,18 +264,18 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
                 )}
               </div>
               {jobId && (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <a
                     href={getDownloadUrl(jobId, 'all')}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm text-zinc-300 hover:bg-white/[0.08] transition-all"
                   >
-                    <Download className="w-4 h-4" /> 全部文件
+                    <Download className="w-4 h-4 shrink-0" /> 全部文件
                   </a>
                   <a
                     href={getDownloadUrl(jobId, 'txt')}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm text-zinc-300 hover:bg-white/[0.08] transition-all"
                   >
-                    <Download className="w-4 h-4" /> 仅文本
+                    <Download className="w-4 h-4 shrink-0" /> 仅文本
                   </a>
                 </div>
               )}
@@ -350,7 +350,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
                   {copied ? '已复制' : '复制全部'}
                 </button>
               </div>
-              <div className="glass rounded-2xl p-5 max-h-[500px] overflow-y-auto">
+              <div className="glass rounded-2xl p-4 sm:p-5 max-h-[420px] sm:max-h-[500px] overflow-y-auto">
                 <div className="space-y-6 stagger-children">
                   {results.map((r, idx) => (
                     <div key={r.filename} className="space-y-2">
@@ -368,7 +368,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
                           [{idx + 1}] {r.filename}
                         </span>
                       </div>
-                      <p className="text-sm text-zinc-300 font-mono leading-relaxed pl-5 border-l border-white/[0.04]">
+                      <p className="text-sm text-zinc-300 font-mono leading-relaxed pl-3 sm:pl-5 border-l border-white/[0.04] break-words">
                         {r.success ? r.prompt : `错误: ${r.error}`}
                       </p>
                     </div>
