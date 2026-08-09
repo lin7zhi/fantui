@@ -7,7 +7,7 @@ import {
   Camera, ShieldOff, RefreshCw,
   Clapperboard,
 } from 'lucide-react'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { Settings } from '@/types'
 import { PROVIDERS } from '@/types'
 import { fetchModels } from '@/lib/api'
@@ -59,17 +59,41 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
     [settings, onChange],
   )
 
+  const [loadingModels, setLoadingModels] = useState(false)
+
+  // 切换提供商 / 改 key / 改地址后，之前拉到的模型列表就失效了
+  useEffect(() => {
+    setModels([])
+    setModelStatus('')
+  }, [settings.provider, settings.apiKey, settings.baseUrl])
+
   const loadModels = useCallback(async () => {
+    setLoadingModels(true)
     try {
       setModelStatus('加载中...')
-      const m = await fetchModels()
-      setModels(m)
-      if (m.length > 0 && !settings.model) update({ model: m[0] })
-      setModelStatus(`已加载 ${m.length} 个模型`)
-    } catch {
-      setModelStatus('加载失败')
+      const useOwnApi = Boolean(settings.apiKey || settings.baseUrl)
+      const res = await fetchModels(
+        useOwnApi
+          ? { provider: settings.provider, apiKey: settings.apiKey, baseUrl: settings.baseUrl }
+          : undefined,
+      )
+      const list = res.models || []
+      setModels(list)
+      if (list.length > 0 && !list.includes(settings.model)) {
+        update({ model: list[0] })
+      }
+      if (!list.length) {
+        setModelStatus('接口没有返回模型，可手动填写模型名')
+      } else {
+        const from = res.source === 'remote' ? '接口' : '环境变量'
+        setModelStatus(`已从${from}加载 ${list.length} 个模型${res.message ? `（${res.message}）` : ''}`)
+      }
+    } catch (err: unknown) {
+      setModelStatus(err instanceof Error ? `加载失败：${err.message}` : '加载失败')
+    } finally {
+      setLoadingModels(false)
     }
-  }, [settings.model, update])
+  }, [settings.provider, settings.apiKey, settings.baseUrl, settings.model, update])
 
   return (
     <AnimatePresence>
@@ -142,15 +166,21 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
                         />
                       </div>
 
-                      <div>
-                        <label className="text-xs text-zinc-500 mb-1.5 block">接口地址</label>
-                        <input
-                          value={settings.baseUrl}
-                          onChange={(e) => update({ baseUrl: e.target.value })}
-                          placeholder="留空则使用默认地址"
-                          className="input-dark w-full"
-                        />
-                      </div>
+                      {settings.provider !== 'gemini' && settings.provider !== 'claude' && (
+                        <div>
+                          <label className="text-xs text-zinc-500 mb-1.5 block">接口地址</label>
+                          <input
+                            value={settings.baseUrl}
+                            onChange={(e) => update({ baseUrl: e.target.value })}
+                            placeholder="如 https://api.xxx.com 或 https://api.xxx.com/v1"
+                            className="input-dark w-full"
+                          />
+                          <p className="text-xs text-zinc-600 mt-1.5 leading-relaxed">
+                            可只填域名，会自动补 <span className="font-mono">/v1</span>；
+                            结尾加 <span className="font-mono">#</span> 表示按原样使用该地址。
+                          </p>
+                        </div>
+                      )}
 
                       <div>
                         <label className="text-xs text-zinc-500 mb-1.5 block">模型选择</label>
@@ -175,14 +205,23 @@ export function SettingsDrawer({ open, onClose, settings, onChange }: Props) {
                           )}
                           <button
                             onClick={loadModels}
-                            className="px-3 rounded-xl bg-white/[0.04] border border-white/[0.06] text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.08] transition-all"
-                            title="从环境变量获取模型列表"
+                            disabled={loadingModels}
+                            className="px-3 rounded-xl bg-white/[0.04] border border-white/[0.06] text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.08] disabled:opacity-40 transition-all"
+                            title="拉取模型列表（填了自己的密钥则用你的接口）"
                           >
-                            <RefreshCw className="w-4 h-4" />
+                            <RefreshCw className={`w-4 h-4 ${loadingModels ? 'animate-spin' : ''}`} />
                           </button>
                         </div>
+                        {models.length > 0 && (
+                          <button
+                            onClick={() => { setModels([]); setModelStatus('已切换为手动填写模型名') }}
+                            className="text-xs text-zinc-500 hover:text-zinc-300 mt-1.5 transition-colors"
+                          >
+                            手动填写模型名
+                          </button>
+                        )}
                         {modelStatus && (
-                          <p className="text-xs text-zinc-600 mt-1.5">{modelStatus}</p>
+                          <p className="text-xs text-zinc-600 mt-1.5 break-all">{modelStatus}</p>
                         )}
                       </div>
                     </motion.div>

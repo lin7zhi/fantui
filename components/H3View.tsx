@@ -5,11 +5,33 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Film, Copy, Check, Loader2, AlertCircle, ShieldAlert } from 'lucide-react'
 import type { Settings } from '@/types'
 import { UploadZone } from '@/components/UploadZone'
-import { fetchH3Modes, generateH3Video, type H3Mode } from '@/lib/api'
+import { AudioRefZone } from '@/components/AudioRefZone'
+import {
+  fetchH3Modes, fetchH3AudioRoles, generateH3Video, modelSupportsAudio,
+  type H3Mode, type H3AudioRole, type H3AudioRef,
+} from '@/lib/api'
+import { useAuth } from '@/lib/useAuth'
 
 interface Props {
   settings: Settings
 }
+
+const MIN_DURATION = 2
+const MAX_DURATION = 20
+const DURATION_PRESETS = [5, 10, 15, 20]
+
+const FALLBACK_AUDIO_ROLES: H3AudioRole[] = [
+  { key: 'voice', label: '音色参考（配音/说话人）' },
+  { key: 'dialogue', label: '台词/歌词复用' },
+  { key: 'bgm', label: '配乐风格参考' },
+  { key: 'bgm_copy', label: '配乐直接复用' },
+  { key: 'ambience', label: '环境声/氛围层' },
+  { key: 'sfx', label: '音效质感参考' },
+  { key: 'rhythm', label: '节奏/卡点参考' },
+  { key: 'full_copy', label: '整轨 1:1 复用' },
+]
+
+const FALLBACK_AUDIO_EXTS = ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.opus', '.flac']
 
 const FALLBACK_MODES: H3Mode[] = [
   { key: 'ref2va', label: '参考图生视频 (Ref2VA)' },
@@ -20,9 +42,15 @@ const FALLBACK_MODES: H3Mode[] = [
 ]
 
 export function H3View({ settings }: Props) {
+  const { user, refresh: refreshAuth } = useAuth()
   const [modes, setModes] = useState<H3Mode[]>(FALLBACK_MODES)
   const [mode, setMode] = useState('ref2va')
   const [files, setFiles] = useState<File[]>([])
+  const [audioRefs, setAudioRefs] = useState<H3AudioRef[]>([])
+  const [audioRoles, setAudioRoles] = useState<H3AudioRole[]>(FALLBACK_AUDIO_ROLES)
+  const [defaultAudioRole, setDefaultAudioRole] = useState('bgm')
+  const [audioAccept, setAudioAccept] = useState<string[]>(FALLBACK_AUDIO_EXTS)
+  const [audioHeard, setAudioHeard] = useState<boolean | null>(null)
   const [brief, setBrief] = useState('')
   const [duration, setDuration] = useState(5)
   const [nsfw, setNsfw] = useState(settings.nsfwMode)
@@ -35,7 +63,16 @@ export function H3View({ settings }: Props) {
     fetchH3Modes()
       .then((m) => { if (m.length) setModes(m) })
       .catch(() => {})
+    fetchH3AudioRoles()
+      .then((data) => {
+        if (data.roles?.length) setAudioRoles(data.roles)
+        if (data.default) setDefaultAudioRole(data.default)
+        if (data.accept?.length) setAudioAccept(data.accept)
+      })
+      .catch(() => {})
   }, [])
+
+  const canHearAudio = modelSupportsAudio(settings.provider, settings.model)
 
   const handleGenerate = useCallback(async () => {
     if (mode !== 't2va' && files.length === 0) {
@@ -45,6 +82,7 @@ export function H3View({ settings }: Props) {
     setProcessing(true)
     setError(null)
     setResult('')
+    setAudioHeard(null)
     try {
       const imageFiles = files.filter((f) => f.type.startsWith('image/'))
       const res = await generateH3Video(imageFiles, {
@@ -52,14 +90,20 @@ export function H3View({ settings }: Props) {
         brief,
         duration,
         settings: { ...settings, nsfwMode: nsfw },
+        audioRefs,
       })
       setResult(res.result)
+      setAudioHeard(res.audioCount > 0 ? res.audioHeard : null)
+      if (res.duration && Math.abs(res.duration - duration) > 0.01) {
+        setDuration(res.duration)
+      }
+      if (user) refreshAuth()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '生成失败')
     } finally {
       setProcessing(false)
     }
-  }, [mode, files, brief, duration, nsfw, settings])
+  }, [mode, files, brief, duration, nsfw, settings, audioRefs, user, refreshAuth])
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(result)
@@ -78,8 +122,9 @@ export function H3View({ settings }: Props) {
       {/* 说明 */}
       <div className="glass rounded-2xl p-5 border-l-2 border-cyan-500/30">
         <p className="text-sm text-zinc-400 leading-relaxed">
-          上传参考图并描述剧情，基于 MiniMax H3 提示词规范生成结构化视频提示词。
-          Ref2VA 会把每张图映射为 <span className="font-mono text-cyan-300">&lt;Picture N&gt;</span>，
+          上传参考图 / 参考音频并描述剧情，基于 MiniMax H3 提示词规范生成结构化视频提示词。
+          Ref2VA 会把每张图映射为 <span className="font-mono text-cyan-300">&lt;Picture N&gt;</span>、
+          每条音频映射为 <span className="font-mono text-cyan-300">&lt;Audio N&gt;</span>，
           输出 <span className="font-mono text-cyan-300">subject_definitions / summary / retention_analysis / detailed_description / overall_soundscape / non_diegetic_music</span> 六段。
         </p>
       </div>
@@ -103,16 +148,33 @@ export function H3View({ settings }: Props) {
         <div className="space-y-2">
           <label className="text-sm font-medium text-zinc-300 block">
             视频时长：<span className="text-cyan-300 font-mono">{duration.toFixed(1)}s</span>
+            <span className="text-xs text-zinc-600 ml-2">支持 2~20 秒</span>
           </label>
           <input
             type="range"
-            min={2}
-            max={12}
+            min={MIN_DURATION}
+            max={MAX_DURATION}
             step={0.5}
             value={duration}
             onChange={(e) => setDuration(parseFloat(e.target.value))}
             className="w-full accent-cyan-500"
           />
+          <div className="flex gap-1.5">
+            {DURATION_PRESETS.map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setDuration(d)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-mono border transition-all ${
+                  duration === d
+                    ? 'border-cyan-500/40 bg-cyan-500/[0.08] text-cyan-200'
+                    : 'border-white/[0.06] bg-white/[0.02] text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                {d}s
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -157,6 +219,28 @@ export function H3View({ settings }: Props) {
           <UploadZone files={files} onChange={setFiles} />
         </div>
       )}
+
+      {/* 参考音频 */}
+      <div className="space-y-3">
+        <label className="text-sm font-medium text-zinc-300 block">
+          参考音频
+          <span className="text-xs text-zinc-600 ml-2 font-normal">可选，可多条</span>
+        </label>
+        <AudioRefZone
+          refs={audioRefs}
+          onChange={setAudioRefs}
+          roles={audioRoles}
+          defaultRole={defaultAudioRole}
+          accept={audioAccept}
+          canHear={canHearAudio}
+        />
+        {audioRefs.length > 0 && mode !== 'ref2va' && (
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            {mode.toUpperCase()} 模式的规范里没有 <span className="font-mono">&lt;Audio N&gt;</span> 标签，
+            音频特征会被写进 integrated_multimodal_description / overall_soundscape / non_diegetic_music。
+          </p>
+        )}
+      </div>
 
       {/* 剧情输入 */}
       <div className="space-y-3">
@@ -224,7 +308,17 @@ export function H3View({ settings }: Props) {
             className="space-y-3"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-zinc-300">H3 视频提示词</h3>
+              <h3 className="text-sm font-medium text-zinc-300">
+                H3 视频提示词
+                {user && (
+                  <span className="ml-2 text-xs font-normal text-emerald-400/70">已存入词记录 · 24h</span>
+                )}
+                {audioHeard !== null && (
+                  <span className={`ml-2 text-xs font-normal ${audioHeard ? 'text-cyan-400/70' : 'text-amber-400/70'}`}>
+                    {audioHeard ? '音频已送入模型' : '音频仅写入提示词'}
+                  </span>
+                )}
+              </h3>
               <button
                 onClick={handleCopy}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.04] transition-all"

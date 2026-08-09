@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { AuthProvider } from '@/lib/useAuth'
 
 export const metadata: Metadata = {
   title: 'Nine7反推助手',
@@ -24,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="bg-[#050505] text-zinc-100 antialiased font-sans selection:bg-purple-500/30">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   )

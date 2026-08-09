@@ -5,12 +5,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, Copy, Check, Loader2, AlertCircle } from 'lucide-react'
 import type { Settings } from '@/types'
 import { expandTags } from '@/lib/api'
+import { useAuth } from '@/lib/useAuth'
 
 interface Props {
   settings: Settings
 }
 
 export function ExpandView({ settings }: Props) {
+  const { user, refresh: refreshAuth } = useAuth()
   const [tags, setTags] = useState('')
   const [result, setResult] = useState('')
   const [processing, setProcessing] = useState(false)
@@ -44,12 +46,13 @@ export function ExpandView({ settings }: Props) {
     try {
       const res = await expandTags(tags, settings)
       setResult(res)
+      if (user) refreshAuth()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '扩写失败')
     } finally {
       setProcessing(false)
     }
-  }, [tags, settings])
+  }, [tags, settings, user, refreshAuth])
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(result)
@@ -142,7 +145,12 @@ export function ExpandView({ settings }: Props) {
             className="space-y-3"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-zinc-300">扩写结果</h3>
+              <h3 className="text-sm font-medium text-zinc-300">
+                扩写结果
+                {user && (
+                  <span className="ml-2 text-xs font-normal text-emerald-400/70">已存入词记录 · 24h</span>
+                )}
+              </h3>
               <button
                 onClick={handleCopy}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.04] transition-all"

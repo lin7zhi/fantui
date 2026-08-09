@@ -1,13 +1,17 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Settings, Github, Cpu } from 'lucide-react'
+import { Settings, Github, Cpu, LogIn, LogOut, User } from 'lucide-react'
+import { useAuth } from '@/lib/useAuth'
 
 interface NavbarProps {
   onSettingsToggle: () => void
+  onAuthToggle: () => void
 }
 
-export function Navbar({ onSettingsToggle }: NavbarProps) {
+export function Navbar({ onSettingsToggle, onAuthToggle }: NavbarProps) {
+  const { user, logout } = useAuth()
+
   return (
     <motion.header
       initial={{ opacity: 0, y: -20 }}
@@ -26,6 +30,27 @@ export function Navbar({ onSettingsToggle }: NavbarProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          {user ? (
+            <div className="flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+              <User className="w-3.5 h-3.5 text-purple-300" />
+              <span className="text-xs text-zinc-300 max-w-[7rem] truncate">{user.username}</span>
+              <button
+                onClick={logout}
+                title="退出登录"
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-zinc-500 hover:text-red-300 hover:bg-white/[0.05] transition-all"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={onAuthToggle}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium text-zinc-300 bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] transition-all"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              登录
+            </button>
+          )}
           <a
             href="https://github.com"
             target="_blank"

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import type { Settings, AnalysisResult } from '@/types'
 import { startAnalysis, subscribeToJob, getDownloadUrl } from '@/lib/api'
+import { useAuth } from '@/lib/useAuth'
 import { UploadZone } from './UploadZone'
 
 interface Props {
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function AnalyzeView({ settings, onSettingsChange }: Props) {
+  const { user, refresh: refreshAuth } = useAuth()
   const [files, setFiles] = useState<File[]>([])
   const [processing, setProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -52,6 +54,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
             setResults(evt.results ?? [])
             setProgress(1)
             setProcessing(false)
+            if (user) refreshAuth()
           } else if (evt.type === 'error') {
             setError(evt.message ?? '未知错误')
             setProcessing(false)
@@ -67,7 +70,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
       setError(err instanceof Error ? err.message : '启动失败')
       setProcessing(false)
     }
-  }, [files, settings])
+  }, [files, settings, user, refreshAuth])
 
   const allText = results
     .map((r, i) => {
@@ -255,6 +258,9 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
                   <span className="flex items-center gap-1.5 text-red-400">
                     <XCircle className="w-4 h-4" /> {errorCount} 失败
                   </span>
+                )}
+                {user && successCount > 0 && (
+                  <span className="text-xs text-emerald-400/70">已存入词记录 · 24h</span>
                 )}
               </div>
               {jobId && (
