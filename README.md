@@ -28,6 +28,9 @@
 - 参考音频可多条，每条选择引用角色（音色 / 台词复用 / 配乐风格 / 配乐直接复用 / 环境声 / 音效 / 节奏 / 整轨复用）并可加备注。
   选到支持音频的模型（Gemini、带 `audio`/`omni` 的模型）时音频会真的送进模型，否则只按角色写进提示词，界面会提示当前状态。
 
-## 开发
-- `.env` 设置 `NEXT_PUBLIC_API_URL` 指向后端地址。
+## 开发与部署
+- 本地开发：`.env.local` 设置 `BACKEND_INTERNAL_URL=http://127.0.0.1:7860`。
+- Vercel：在项目环境变量中设置 `BACKEND_INTERNAL_URL=https://你的-space.hf.space`，不要设置 `NEXT_PUBLIC_API_URL`。
+- 前端浏览器始终请求同源 `/api/backend/*`，Next.js 服务端 rewrite 再转发到 Hugging Face 后端，避免浏览器把 localhost 解析到用户设备。
+- Hugging Face 后端使用 `backend/Dockerfile`，`COPY . .` 会将 `skills/image-prompt-reverse/` 一起打包进 Space。
 - `npm install && npm run dev`（构建 `npm run build`）。

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ScanSearch, Sparkles, Film, History } from 'lucide-react'
+import { ScanSearch, Sparkles, Film, History, Wand2 } from 'lucide-react'
 
 import { Background } from '@/components/Background'
 import { Navbar } from '@/components/Navbar'
@@ -17,6 +17,7 @@ import type { Settings } from '@/types'
 
 const TABS = [
   { key: 'analyze' as const, label: '图像反推', icon: ScanSearch },
+  { key: 'krea2' as const, label: 'Krea2反推', icon: Wand2 },
   { key: 'expand' as const, label: '标签扩写', icon: Sparkles },
   { key: 'h3' as const, label: 'H3视频', icon: Film },
   { key: 'history' as const, label: '词记录', icon: History },
@@ -122,10 +123,21 @@ export default function Home() {
         {/* Tab 内容 */}
         <AnimatePresence mode="wait">
           {activeTab === 'analyze' && (
-            <AnalyzeView key="analyze" settings={settings} onSettingsChange={setSettings} />
+            <AnalyzeView
+              key="analyze"
+              settings={{ ...settings, krea2: false }}
+              onSettingsChange={(next) => setSettings({ ...next, krea2: false })}
+            />
+          )}
+          {activeTab === 'krea2' && (
+            <AnalyzeView
+              key="krea2"
+              settings={{ ...settings, krea2: true }}
+              onSettingsChange={(next) => setSettings({ ...next, krea2: true })}
+            />
           )}
           {activeTab === 'expand' && (
-            <ExpandView key="expand" settings={settings} />
+            <ExpandView key="expand" settings={settings} onSettingsChange={setSettings} />
           )}
           {activeTab === 'h3' && (
             <H3View key="h3" settings={settings} />

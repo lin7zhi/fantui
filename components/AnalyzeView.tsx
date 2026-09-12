@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Play, Download, Copy, Check, Loader2,
   ChevronDown, Image as ImageIcon, AlertCircle,
-  SkipForward, CheckCircle2, XCircle,
+  SkipForward, CheckCircle2, XCircle, RefreshCw, Camera,
 } from 'lucide-react'
 import type { Settings, AnalysisResult } from '@/types'
 import { startAnalysis, subscribeToJob, getDownloadUrl } from '@/lib/api'
@@ -26,7 +26,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
   const [results, setResults] = useState<AnalysisResult[]>([])
   const [jobId, setJobId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<'all' | 'chinese' | 'english' | null>(null)
   const [showGallery, setShowGallery] = useState(false)
   const unsubRef = useRef<(() => void) | null>(null)
 
@@ -72,19 +72,17 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
     }
   }, [files, settings, user, refreshAuth])
 
-  const allText = results
-    .map((r, i) => {
-      const status = r.success ? (r.cached ? '缓存' : '成功') : '失败'
-      const content = r.success ? r.prompt : `错误: ${r.error}`
-      return `[${i + 1}] ${r.filename} [${status}]\n${'─'.repeat(40)}\n${content}`
-    })
+  const copyText = (language: 'chinese' | 'english' | 'all') => results
+    .filter((r) => r.success)
+    .map((r) => language === 'chinese' ? (r.chinese || r.prompt) : language === 'english' ? (r.english || '') : settings.krea2 ? [r.chinese || r.prompt, r.english || ''].filter(Boolean).join('\n\n') : (r.prompt || ''))
+    .filter(Boolean)
     .join('\n\n')
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(allText)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }, [allText])
+  const handleCopy = useCallback((language: 'chinese' | 'english' | 'all') => {
+    navigator.clipboard.writeText(copyText(language))
+    setCopied(language)
+    setTimeout(() => setCopied(null), 2000)
+  }, [results])
 
   const successCount = results.filter((r) => r.success).length
   const errorCount = results.filter((r) => !r.success).length
@@ -159,6 +157,68 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
             className="input-dark w-full mt-3 text-xs font-mono resize-none"
           />
         </details>
+        {!settings.krea2 && (
+          <div className="mt-4 pt-4 border-t border-white/[0.06]">
+            <div className="rounded-2xl border border-purple-500/10 bg-purple-500/[0.03] px-4 py-3 space-y-3">
+              <label className="flex items-center justify-between gap-3 cursor-pointer">
+                <span className="flex items-center gap-3 min-w-0">
+                  <Camera className="w-4 h-4 text-purple-400 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-zinc-200">肖像标注模式</span>
+                    <span className="block text-xs text-zinc-500">客观肖像标注，训练 LoRA 推荐</span>
+                  </span>
+                </span>
+                <span className={`relative w-10 h-6 shrink-0 rounded-full transition-colors ${
+                  settings.portraitMode ? 'bg-purple-500/50' : 'bg-white/[0.08]'
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={settings.portraitMode}
+                    onChange={(e) => onSettingsChange({ ...settings, portraitMode: e.target.checked })}
+                    className="sr-only"
+                  />
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                    settings.portraitMode ? 'translate-x-4' : ''
+                  }`} />
+                </span>
+              </label>
+              {settings.portraitMode && (
+                <input
+                  value={settings.portraitSuffix}
+                  onChange={(e) => onSettingsChange({ ...settings, portraitSuffix: e.target.value })}
+                  placeholder="自定义人物后缀，如：章鱼"
+                  className="input-dark w-full text-sm"
+                />
+              )}
+            </div>
+          </div>
+        )}
+        {settings.krea2 && (
+          <div className="mt-4 pt-4 border-t border-white/[0.06]">
+            <label className="flex items-center justify-between gap-3 cursor-pointer rounded-2xl border border-cyan-500/10 bg-cyan-500/[0.03] px-4 py-3">
+              <span className="flex items-center gap-3 min-w-0">
+                <RefreshCw className="w-4 h-4 text-cyan-400 shrink-0" />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-zinc-200">两阶段证据模式</span>
+                  <span className="block text-xs text-zinc-500">先提取可见证据表再成稿，更准但更慢且更耗请求</span>
+                </span>
+              </span>
+              <span className={`relative w-10 h-6 shrink-0 rounded-full transition-colors ${
+                settings.krea2EvidenceMode ? 'bg-cyan-500/50' : 'bg-white/[0.08]'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={settings.krea2EvidenceMode}
+                  onChange={(e) => onSettingsChange({ ...settings, krea2EvidenceMode: e.target.checked })}
+                  className="sr-only"
+                />
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                  settings.krea2EvidenceMode ? 'translate-x-4' : ''
+                }`} />
+              </span>
+            </label>
+          </div>
+        )}
       </div>
 
       {/* 上传区 */}
@@ -342,13 +402,14 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium text-zinc-300">纯文本对照摘要</h3>
-                <button
-                  onClick={handleCopy}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.04] transition-all"
-                >
-                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copied ? '已复制' : '复制全部'}
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {(['chinese', 'english', 'all'] as const).map((language) => (
+                    <button key={language} onClick={() => handleCopy(language)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.04] transition-all">
+                      {copied === language ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copied === language ? '已复制' : language === 'chinese' ? '复制中文' : language === 'english' ? '复制英文' : '复制全部'}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="glass rounded-2xl p-4 sm:p-5 max-h-[420px] sm:max-h-[500px] overflow-y-auto">
                 <div className="space-y-6 stagger-children">
@@ -368,9 +429,22 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
                           [{idx + 1}] {r.filename}
                         </span>
                       </div>
-                      <p className="text-sm text-zinc-300 font-mono leading-relaxed pl-3 sm:pl-5 border-l border-white/[0.04] break-words">
-                        {r.success ? r.prompt : `错误: ${r.error}`}
-                      </p>
+                      {r.success ? (
+                        <div className="space-y-3 pl-3 sm:pl-5 border-l border-white/[0.04]">
+                          {settings.krea2 ? (
+                            <>
+                              <div>
+                                <span className="text-[11px] text-purple-300">中文</span>
+                                <p className="text-sm text-zinc-300 font-mono leading-relaxed break-words">{r.chinese || r.prompt}</p>
+                              </div>
+                              <div>
+                                <span className="text-[11px] text-cyan-300">English</span>
+                                <p className="text-sm text-zinc-300 font-mono leading-relaxed break-words">{r.english}</p>
+                              </div>
+                            </>
+                          ) : <p className="text-sm text-zinc-300 font-mono leading-relaxed break-words">{r.prompt}</p>}
+                        </div>
+                      ) : <p className="text-sm text-red-300 pl-3 sm:pl-5">错误: {r.error}</p>}
                     </div>
                   ))}
                 </div>

@@ -2,16 +2,17 @@
 
 import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Copy, Check, Loader2, AlertCircle } from 'lucide-react'
+import { Sparkles, Copy, Check, Loader2, AlertCircle, Clapperboard } from 'lucide-react'
 import type { Settings } from '@/types'
 import { expandTags } from '@/lib/api'
 import { useAuth } from '@/lib/useAuth'
 
 interface Props {
   settings: Settings
+  onSettingsChange: (s: Settings) => void
 }
 
-export function ExpandView({ settings }: Props) {
+export function ExpandView({ settings, onSettingsChange }: Props) {
   const { user, refresh: refreshAuth } = useAuth()
   const [tags, setTags] = useState('')
   const [result, setResult] = useState('')
@@ -75,6 +76,47 @@ export function ExpandView({ settings }: Props) {
             ? `输入一段故事大纲,AI 将按大纲续写为 ${settings.theaterCount} 幕前后连贯的出图提示词,同一角色与画风贯穿全篇,像漫画分镜一样。`
             : '输入简单的标签或元素关键词,AI 将根据左侧配置面板中的维度开关和模式设置,扩写为细节饱满的中文自然语言长段落描述。'}
         </p>
+      </div>
+
+      {/* 剧场模式 */}
+      <div className="glass rounded-2xl p-4 sm:p-5 space-y-4 border-amber-500/10">
+        <label className="flex items-center justify-between gap-3 cursor-pointer">
+          <span className="flex items-center gap-3 min-w-0">
+            <Clapperboard className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-zinc-200">剧场模式</span>
+              <span className="block text-xs text-zinc-500">按故事大纲续写多幕连贯出图提示词</span>
+            </span>
+          </span>
+          <span className={`relative w-10 h-6 shrink-0 rounded-full transition-colors ${
+            settings.theaterMode ? 'bg-amber-500/50' : 'bg-white/[0.08]'
+          }`}>
+            <input
+              type="checkbox"
+              checked={settings.theaterMode}
+              onChange={(e) => onSettingsChange({ ...settings, theaterMode: e.target.checked })}
+              className="sr-only"
+            />
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+              settings.theaterMode ? 'translate-x-4' : ''
+            }`} />
+          </span>
+        </label>
+        {settings.theaterMode && (
+          <div>
+            <label className="text-xs text-zinc-500 mb-2 block">
+              分幕数量：{settings.theaterCount}
+            </label>
+            <input
+              type="range"
+              min={2}
+              max={12}
+              value={settings.theaterCount}
+              onChange={(e) => onSettingsChange({ ...settings, theaterCount: parseInt(e.target.value) })}
+              className="w-full h-1.5 rounded-full bg-white/[0.06] appearance-none cursor-pointer accent-amber-500"
+            />
+          </div>
+        )}
       </div>
 
       {/* 输入 */}

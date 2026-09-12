@@ -19,6 +19,8 @@ export interface Settings {
   maxConcurrent: number
   skipCompleted: boolean
   customPrompt: string
+  krea2: boolean
+  krea2EvidenceMode: boolean
 }
 
 export interface AnalysisResult {
@@ -27,6 +29,8 @@ export interface AnalysisResult {
   success: boolean
   error?: string
   cached?: boolean
+  chinese?: string
+  english?: string
 }
 
 export interface JobEvent {
@@ -61,6 +65,8 @@ export const DEFAULT_SETTINGS: Settings = {
   maxConcurrent: 3,
   skipCompleted: true,
   customPrompt: '',
+  krea2: false,
+  krea2EvidenceMode: false,
 }
 
 export const DIMENSION_ICONS: Record<string, string> = {

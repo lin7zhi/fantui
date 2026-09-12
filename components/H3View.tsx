@@ -6,6 +6,7 @@ import { Film, Copy, Check, Loader2, AlertCircle, ShieldAlert } from 'lucide-rea
 import type { Settings } from '@/types'
 import { UploadZone } from '@/components/UploadZone'
 import { AudioRefZone } from '@/components/AudioRefZone'
+import { VideoRefZone } from '@/components/VideoRefZone'
 import {
   fetchH3Modes, fetchH3AudioRoles, generateH3Video, modelSupportsAudio,
   type H3Mode, type H3AudioRole, type H3AudioRef,
@@ -46,6 +47,7 @@ export function H3View({ settings }: Props) {
   const [modes, setModes] = useState<H3Mode[]>(FALLBACK_MODES)
   const [mode, setMode] = useState('ref2va')
   const [files, setFiles] = useState<File[]>([])
+  const [videoFiles, setVideoFiles] = useState<File[]>([])
   const [audioRefs, setAudioRefs] = useState<H3AudioRef[]>([])
   const [audioRoles, setAudioRoles] = useState<H3AudioRole[]>(FALLBACK_AUDIO_ROLES)
   const [defaultAudioRole, setDefaultAudioRole] = useState('bgm')
@@ -91,6 +93,7 @@ export function H3View({ settings }: Props) {
         duration,
         settings: { ...settings, nsfwMode: nsfw },
         audioRefs,
+        videoFiles,
       })
       setResult(res.result)
       setAudioHeard(res.audioCount > 0 ? res.audioHeard : null)
@@ -103,7 +106,7 @@ export function H3View({ settings }: Props) {
     } finally {
       setProcessing(false)
     }
-  }, [mode, files, brief, duration, nsfw, settings, audioRefs, user, refreshAuth])
+  }, [mode, files, videoFiles, brief, duration, nsfw, settings, audioRefs, user, refreshAuth])
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(result)
@@ -122,7 +125,7 @@ export function H3View({ settings }: Props) {
       {/* 说明 */}
       <div className="glass rounded-2xl p-4 sm:p-5 border-l-2 border-cyan-500/30">
         <p className="text-sm text-zinc-400 leading-relaxed">
-          上传参考图 / 参考音频并描述剧情，基于 MiniMax H3 提示词规范生成结构化视频提示词。
+          上传参考视频、参考图 / 参考音频并描述剧情，基于 MiniMax H3 提示词规范生成结构化视频提示词。
           Ref2VA 会把每张图映射为 <span className="font-mono text-cyan-300">&lt;Picture N&gt;</span>、
           每条音频映射为 <span className="font-mono text-cyan-300">&lt;Audio N&gt;</span>，
           输出 <span className="font-mono text-cyan-300 break-all">subject_definitions / summary / retention_analysis / detailed_description / overall_soundscape / non_diegetic_music</span> 六段。
@@ -240,6 +243,18 @@ export function H3View({ settings }: Props) {
             音频特征会被写进 integrated_multimodal_description / overall_soundscape / non_diegetic_music。
           </p>
         )}
+      </div>
+
+      {/* 参考视频 */}
+      <div className="space-y-3">
+        <label className="text-sm font-medium text-zinc-300 block">
+          参考视频
+          <span className="text-xs text-zinc-600 ml-2 font-normal">可选，可多条</span>
+        </label>
+        <VideoRefZone files={videoFiles} onChange={setVideoFiles} />
+        <p className="text-xs text-zinc-600">
+          会参考镜头顺序、动作连续性、镜头运动、剪辑节奏和时间结构；当前不支持 Claude 视频输入。
+        </p>
       </div>
 
       {/* 剧情输入 */}

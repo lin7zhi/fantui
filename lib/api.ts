@@ -1,7 +1,8 @@
 import type { Settings, AnalysisResult, JobEvent } from '@/types'
 import { authHeaders, clearSession, getToken, type AuthUser } from '@/lib/auth'
 
-const API = process.env.NEXT_PUBLIC_API_URL || ''
+// Keep API calls same-origin so remote browser clients never resolve localhost locally.
+const API = '/api/backend'
 
 async function readError(res: Response): Promise<string> {
   const text = await res.text()
@@ -20,7 +21,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (init.body && !(init.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json'
   }
-  const res = await fetch(`${API}${path}`, {
+  const backendPath = path.startsWith('/api/') ? path.slice(4) : path
+  const res = await fetch(`${API}${backendPath}`, {
     ...init,
     headers: { ...headers, ...(init.headers as Record<string, string> | undefined) },
   })
@@ -127,7 +129,7 @@ export interface PromptRecord {
 export function getRecordImageUrl(imageId: string): string {
   const token = getToken()
   const qs = token ? `?token=${encodeURIComponent(token)}` : ''
-  return `${API}/api/records/images/${imageId}${qs}`
+  return `${API}/records/images/${imageId}${qs}`
 }
 
 export function fetchRecords(kind?: RecordKind) {
@@ -170,6 +172,8 @@ function buildSettingsPayload(s: Settings) {
     portrait_suffix: s.portraitSuffix,
     custom_prompt: s.customPrompt || null,
     enabled_dims: enabledDims,
+    krea2: s.krea2,
+    krea2_evidence_mode: s.krea2EvidenceMode,
   }
 }
 
@@ -193,7 +197,7 @@ export function subscribeToJob(
   onEvent: (evt: JobEvent) => void,
   onError: (err: Error) => void,
 ): () => void {
-  const es = new EventSource(`${API}/api/jobs/${jobId}/stream`)
+  const es = new EventSource(`${API}/jobs/${jobId}/stream`)
 
   es.onmessage = (e) => {
     try {
@@ -208,8 +212,11 @@ export function subscribeToJob(
   }
 
   es.onerror = () => {
-    onError(new Error('Connection lost'))
-    es.close()
+    // EventSource automatically reconnects using the server-provided retry delay.
+    // Keep the subscription alive during transient proxy or network interruptions.
+    if (es.readyState === EventSource.CLOSED) {
+      onError(new Error('任务连接已关闭，请重新提交'))
+    }
   }
 
   return () => es.close()
@@ -296,6 +303,7 @@ export async function generateH3Video(
     duration: number
     settings: Settings
     audioRefs?: H3AudioRef[]
+    videoFiles?: File[]
   },
 ): Promise<{
   mode: string
@@ -305,9 +313,10 @@ export async function generateH3Video(
   duration: number
   result: string
 }> {
-  const { mode, brief, duration, settings, audioRefs = [] } = opts
+  const { mode, brief, duration, settings, audioRefs = [], videoFiles = [] } = opts
   const formData = new FormData()
   files.forEach((f) => formData.append('files', f))
+  videoFiles.forEach((file) => formData.append('video_files', file))
   audioRefs.forEach((a) => formData.append('audio_files', a.file))
   formData.append(
     'settings',
@@ -321,7 +330,8 @@ export async function generateH3Video(
       model: settings.model || null,
       nsfw: settings.nsfwMode,
       nsfw_max_rolls: settings.nsfwMaxRolls,
-      audio_refs: audioRefs.map((a) => ({
+      video_filenames: videoFiles.map((file) => file.name),
+       audio_refs: audioRefs.map((a) => ({
         filename: a.file.name,
         role: a.role,
         notes: a.notes,
