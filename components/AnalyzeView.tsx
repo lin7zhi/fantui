@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Play, Download, Copy, Check, Loader2,
@@ -8,7 +8,7 @@ import {
   SkipForward, CheckCircle2, XCircle, RefreshCw, Camera,
 } from 'lucide-react'
 import type { Settings, AnalysisResult } from '@/types'
-import { runAnalysis, downloadResultsZip } from '@/lib/api'
+import { startAnalysis, subscribeToJob, getDownloadUrl } from '@/lib/api'
 import { useAuth } from '@/lib/useAuth'
 import { UploadZone } from './UploadZone'
 
@@ -24,47 +24,53 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
   const [progress, setProgress] = useState(0)
   const [progressMsg, setProgressMsg] = useState('')
   const [results, setResults] = useState<AnalysisResult[]>([])
-  const [resultFiles, setResultFiles] = useState<{ name: string; text: string }[]>([])
+  const [jobId, setJobId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState<'all' | 'chinese' | 'english' | null>(null)
   const [showGallery, setShowGallery] = useState(false)
-  const [downloading, setDownloading] = useState(false)
+  const unsubRef = useRef<(() => void) | null>(null)
 
   const handleStart = useCallback(async () => {
     if (!files.length) return
     setProcessing(true)
     setProgress(0)
-    setProgressMsg('正在上传并处理，请稍候…')
+    setProgressMsg('正在上传文件...')
     setResults([])
-    setResultFiles([])
     setError(null)
+    setJobId(null)
 
     try {
-      // Workers 后端同步返回：一次请求直接拿到全部结果，无需 SSE 轮询。
-      const data = await runAnalysis(files, settings)
-      setResults(data.results)
-      setResultFiles(data.files)
-      setProgress(1)
-      setProgressMsg('处理完成')
-      if (user) refreshAuth()
+      const { jobId: jid } = await startAnalysis(files, settings)
+      setJobId(jid)
+      setProgressMsg('正在处理中...')
+
+      const unsub = subscribeToJob(
+        jid,
+        (evt) => {
+          if (evt.type === 'progress') {
+            setProgress(evt.progress ?? 0)
+            setProgressMsg(evt.message ?? '')
+          } else if (evt.type === 'complete') {
+            setResults(evt.results ?? [])
+            setProgress(1)
+            setProcessing(false)
+            if (user) refreshAuth()
+          } else if (evt.type === 'error') {
+            setError(evt.message ?? '未知错误')
+            setProcessing(false)
+          }
+        },
+        (err) => {
+          setError(err.message)
+          setProcessing(false)
+        },
+      )
+      unsubRef.current = unsub
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '启动失败')
-    } finally {
       setProcessing(false)
     }
   }, [files, settings, user, refreshAuth])
-
-  const handleDownload = useCallback(async () => {
-    if (!resultFiles.length) return
-    setDownloading(true)
-    try {
-      await downloadResultsZip(resultFiles, 'results.zip')
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '下载失败')
-    } finally {
-      setDownloading(false)
-    }
-  }, [resultFiles])
 
   const copyText = (language: 'chinese' | 'english' | 'all') => results
     .filter((r) => r.success)
@@ -317,19 +323,20 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
                   <span className="text-xs text-emerald-400/70">已存入词记录 · 24h</span>
                 )}
               </div>
-              {resultFiles.length > 0 && (
+              {jobId && (
                 <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleDownload}
-                    disabled={downloading}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm text-zinc-300 hover:bg-white/[0.08] transition-all disabled:opacity-60"
+                  <a
+                    href={getDownloadUrl(jobId, 'all')}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm text-zinc-300 hover:bg-white/[0.08] transition-all"
                   >
-                    {downloading
-                      ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
-                      : <Download className="w-4 h-4 shrink-0" />}
-                    下载 ZIP
-                  </button>
+                    <Download className="w-4 h-4 shrink-0" /> 全部文件
+                  </a>
+                  <a
+                    href={getDownloadUrl(jobId, 'txt')}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm text-zinc-300 hover:bg-white/[0.08] transition-all"
+                  >
+                    <Download className="w-4 h-4 shrink-0" /> 仅文本
+                  </a>
                 </div>
               )}
             </div>
