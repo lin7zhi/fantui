@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
-const backendOrigin = process.env.BACKEND_INTERNAL_URL || 'http://127.0.0.1:7860'
+// Backend is a Cloudflare Python Worker. Rewrites are evaluated at build time,
+// so keep the origin as a literal (env vars added in the Vercel dashboard are
+// not guaranteed to be inlined here, and a localhost fallback breaks the build).
+const backendOrigin =
+  process.env.BACKEND_INTERNAL_URL || 'https://prompt-engine.linlizhi0210.workers.dev'
 
 const nextConfig = {
   output: 'standalone',

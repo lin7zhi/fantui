@@ -1,8 +1,30 @@
-import type { Settings, AnalysisResult, JobEvent } from '@/types'
+import type { Settings, AnalysisResult } from '@/types'
 import { authHeaders, clearSession, getToken, type AuthUser } from '@/lib/auth'
 
 // Keep API calls same-origin so remote browser clients never resolve localhost locally.
 const API = '/api/backend'
+
+/**
+ * Workers 冷启动的第一次请求偶尔会超时（CF 免费版单请求 CPU 上限，错误码 1101）。
+ * 对 GET 等幂等请求做一次自动重试，让体验稳定。
+ */
+async function fetchWithRetry(path: string, init: RequestInit = {}): Promise<Response> {
+  const method = (init.method || 'GET').toUpperCase()
+  const canRetry = method === 'GET' || method === 'HEAD'
+  let res: Response
+  try {
+    res = await fetch(path, init)
+  } catch (err) {
+    if (!canRetry) throw err
+    await new Promise((r) => setTimeout(r, 900))
+    return fetch(path, init)
+  }
+  if (canRetry && (res.status === 500 || res.status === 502 || res.status === 503)) {
+    await new Promise((r) => setTimeout(r, 900))
+    return fetch(path, init)
+  }
+  return res
+}
 
 async function readError(res: Response): Promise<string> {
   const text = await res.text()
@@ -22,7 +44,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers['Content-Type'] = 'application/json'
   }
   const backendPath = path.startsWith('/api/') ? path.slice(4) : path
-  const res = await fetch(`${API}${backendPath}`, {
+  const res = await fetchWithRetry(`${API}${backendPath}`, {
     ...init,
     headers: { ...headers, ...(init.headers as Record<string, string> | undefined) },
   })
@@ -177,53 +199,47 @@ function buildSettingsPayload(s: Settings) {
   }
 }
 
-export async function startAnalysis(
+/**
+ * 反推：Workers 后端是同步返回的（不再有 job_id / SSE 进度流）。
+ * 一次 POST 直接拿到全部结果，同时带回可打包下载的 txt 列表。
+ */
+export async function runAnalysis(
   files: File[],
   settings: Settings,
-): Promise<{ jobId: string; totalImages: number }> {
+): Promise<{ results: AnalysisResult[]; files: { name: string; text: string }[] }> {
   const formData = new FormData()
   files.forEach((f) => formData.append('files', f))
   formData.append('settings', JSON.stringify(buildSettingsPayload(settings)))
 
-  const data = await request<{ job_id: string; total_images: number }>('/api/analyze', {
+  const data = await request<{
+    results: AnalysisResult[]
+    files?: { name: string; text: string }[]
+    total_images: number
+  }>('/api/analyze', { method: 'POST', body: formData })
+
+  return { results: data.results || [], files: data.files || [] }
+}
+
+/** 把结果打包成 zip：后端改为 POST + JSON body，在内存里生成。 */
+export async function downloadResultsZip(
+  files: { name: string; text: string }[],
+  filename = 'results.zip',
+): Promise<void> {
+  const res = await fetch(`${API}/download`, {
     method: 'POST',
-    body: formData,
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ files }),
   })
-  return { jobId: data.job_id, totalImages: data.total_images }
-}
-
-export function subscribeToJob(
-  jobId: string,
-  onEvent: (evt: JobEvent) => void,
-  onError: (err: Error) => void,
-): () => void {
-  const es = new EventSource(`${API}/jobs/${jobId}/stream`)
-
-  es.onmessage = (e) => {
-    try {
-      const data = JSON.parse(e.data) as JobEvent
-      onEvent(data)
-      if (data.type === 'complete' || data.type === 'error') {
-        es.close()
-      }
-    } catch (err) {
-      console.error('SSE parse error', err)
-    }
-  }
-
-  es.onerror = () => {
-    // EventSource automatically reconnects using the server-provided retry delay.
-    // Keep the subscription alive during transient proxy or network interruptions.
-    if (es.readyState === EventSource.CLOSED) {
-      onError(new Error('任务连接已关闭，请重新提交'))
-    }
-  }
-
-  return () => es.close()
-}
-
-export function getDownloadUrl(jobId: string, type: 'all' | 'txt') {
-  return `${API}/api/download/${jobId}/${type}`
+  if (!res.ok) throw new Error(await readError(res))
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
 }
 
 export type { AnalysisResult }
