@@ -8,7 +8,7 @@ import {
   SkipForward, CheckCircle2, XCircle, RefreshCw, Camera,
 } from 'lucide-react'
 import type { Settings, AnalysisResult } from '@/types'
-import { startAnalysis, subscribeToJob, getDownloadUrl } from '@/lib/api'
+import { uploadAnalysis, prepareUpload, subscribeToJob, getDownloadUrl, UploadInterruptedError } from '@/lib/api'
 import { useAuth } from '@/lib/useAuth'
 import { UploadZone } from './UploadZone'
 
@@ -34,13 +34,37 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
     if (!files.length) return
     setProcessing(true)
     setProgress(0)
-    setProgressMsg('正在上传文件...')
+    setProgressMsg(settings.compressUpload ? '正在压缩图片...' : '正在上传文件...')
     setResults([])
     setError(null)
     setJobId(null)
 
+    const mb = (bytes: number) => (bytes / 1024 / 1024).toFixed(1)
+
     try {
-      const { jobId: jid } = await startAnalysis(files, settings)
+      const prepared = await prepareUpload(files, settings, (stage) => {
+        if (stage.phase === 'compress') {
+          setProgressMsg(`正在压缩图片 ${stage.done}/${stage.total}（约 ${mb(stage.bytes)} MB）...`)
+        }
+      })
+
+      let attempt = 0
+      let started: { jobId: string; totalImages: number } | null = null
+      while (attempt < 2 && !started) {
+        attempt += 1
+        try {
+          started = await uploadAnalysis(prepared, settings, (stage) => {
+            setProgressMsg(`正在上传 ${stage.total} 张（约 ${mb(stage.bytes)} MB）...`)
+          })
+        } catch (err) {
+          // 传输层被掐断时（Safari 直接报 Load failed）自动重发一次，压缩后的体积重传很便宜。
+          if (!(err instanceof UploadInterruptedError) || attempt >= 2) throw err
+          setProgressMsg('上传中断，正在重试...')
+          await new Promise((r) => setTimeout(r, 1000))
+        }
+      }
+      if (!started) throw new Error('启动失败')
+      const { jobId: jid } = started
       setJobId(jid)
       setProgressMsg('正在处理中...')
 
@@ -141,6 +165,40 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
               <span className="text-xs text-zinc-400">跳过已完成（断点续跑）</span>
             </label>
           </div>
+        </div>
+
+        {/* 上传前压缩：手机上一批几十张原图很容易在上传途中被掐断 */}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pb-5 mb-5 border-b border-white/[0.06]">
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={settings.compressUpload}
+                onChange={(e) => onSettingsChange({ ...settings, compressUpload: e.target.checked })}
+                className="sr-only peer"
+              />
+              <div className="w-10 h-6 rounded-full bg-white/[0.06] peer-checked:bg-purple-500/40 transition-colors" />
+              <div className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-zinc-400 peer-checked:bg-purple-400 peer-checked:translate-x-4 transition-all" />
+            </div>
+            <span className="text-xs text-zinc-400">上传前压缩（推荐）</span>
+          </label>
+          {settings.compressUpload && (
+            <label className="flex items-center gap-2 text-xs text-zinc-500">
+              最长边
+              <select
+                value={settings.uploadMaxEdge}
+                onChange={(e) => onSettingsChange({ ...settings, uploadMaxEdge: parseInt(e.target.value) })}
+                className="input-dark py-1.5 text-xs"
+              >
+                <option value={1280}>1280 px</option>
+                <option value={1536}>1536 px</option>
+                <option value={2048}>2048 px</option>
+              </select>
+            </label>
+          )}
+          <span className="text-xs text-zinc-600 leading-relaxed">
+            模型拿到的本来就是压缩后的图，反推结果不变；下载的图片会变成压缩版本
+          </span>
         </div>
 
         {/* 自定义模板 */}

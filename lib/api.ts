@@ -16,22 +16,129 @@ async function readError(res: Response): Promise<string> {
   return text || res.statusText
 }
 
+/** 浏览器级传输失败（连响应都没拿到）：Safari 报 Load failed，Chrome 报 Failed to fetch。 */
+export class UploadInterruptedError extends Error {}
+
+function interruptedMessage(raw: string): string {
+  return `上传中断：浏览器没能完成这次请求（${raw}）。通常是网络中途断开、上传体积过大或代理/VPN 掐断长连接。`
+    + '可以开启「上传前压缩」、切到 Wi-Fi、或减少一次提交的图片数量后重试。'
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = { ...authHeaders() }
   if (init.body && !(init.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json'
   }
   const backendPath = path.startsWith('/api/') ? path.slice(4) : path
-  const res = await fetch(`${API}${backendPath}`, {
-    ...init,
-    headers: { ...headers, ...(init.headers as Record<string, string> | undefined) },
-  })
+  let res: Response
+  try {
+    res = await fetch(`${API}${backendPath}`, {
+      ...init,
+      headers: { ...headers, ...(init.headers as Record<string, string> | undefined) },
+    })
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err)
+    throw new UploadInterruptedError(interruptedMessage(raw))
+  }
   if (res.status === 401) {
     clearSession()
     throw new Error(await readError(res))
   }
   if (!res.ok) throw new Error(await readError(res))
   return (await res.json()) as T
+}
+
+/* ───────── 上传前压缩 ───────── */
+/** 这些格式交给浏览器解码后按 JPEG 重压；其余（GIF/SVG/视频等）原样上传。 */
+const DECODABLE_IMAGE_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'image/heic', 'image/heif', 'image/avif',
+])
+
+async function decodeImage(file: File) {
+  if (typeof createImageBitmap === 'function') {
+    try {
+      // imageOrientation: 'none' 与后端的 PIL 处理保持一致：不按 EXIF 旋转像素。
+      const bitmap = await createImageBitmap(file, { imageOrientation: 'none' })
+      return { src: bitmap as CanvasImageSource, width: bitmap.width, height: bitmap.height, release: () => bitmap.close() }
+    } catch {
+      /* 桌面端解不了 HEIC 之类，退回 <img> 再试一次 */
+    }
+  }
+  const url = URL.createObjectURL(file)
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image()
+      el.onload = () => resolve(el)
+      el.onerror = () => reject(new Error('decode failed'))
+      el.src = url
+    })
+    return {
+      src: img as CanvasImageSource,
+      width: img.naturalWidth || img.width,
+      height: img.naturalHeight || img.height,
+      release: () => URL.revokeObjectURL(url),
+    }
+  } catch (err) {
+    URL.revokeObjectURL(url)
+    throw err
+  }
+}
+
+/** 单张图片按最长边缩放并转成 JPEG；解不了或压不小就原样返回。 */
+export async function shrinkImage(file: File, maxEdge: number, quality = 0.9): Promise<File> {
+  if (maxEdge <= 0 || !DECODABLE_IMAGE_TYPES.has(file.type)) return file
+
+  let decoded
+  try {
+    decoded = await decodeImage(file)
+  } catch {
+    return file
+  }
+
+  try {
+    const scale = Math.min(1, maxEdge / Math.max(decoded.width, decoded.height))
+    if (scale >= 1 && file.size <= 300 * 1024) return file
+    const width = Math.max(1, Math.round(decoded.width * scale))
+    const height = Math.max(1, Math.round(decoded.height * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return file
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, width, height)
+    ctx.drawImage(decoded.src, 0, 0, width, height)
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality))
+    if (!blob || blob.size >= file.size) return file
+    const name = file.name.replace(/\.[^.\\/]+$/, '') + '.jpg'
+    return new File([blob], name, { type: 'image/jpeg', lastModified: file.lastModified })
+  } finally {
+    decoded.release()
+  }
+}
+
+export interface PrepareStage {
+  phase: 'compress' | 'upload'
+  done: number
+  total: number
+  bytes: number
+}
+
+export async function prepareUpload(
+  files: File[],
+  settings: Settings,
+  onStage?: (stage: PrepareStage) => void,
+): Promise<File[]> {
+  if (!settings.compressUpload) return files
+  const out: File[] = []
+  let bytes = 0
+  for (let i = 0; i < files.length; i++) {
+    const shrunk = await shrinkImage(files[i], settings.uploadMaxEdge)
+    out.push(shrunk)
+    bytes += shrunk.size
+    onStage?.({ phase: 'compress', done: i + 1, total: files.length, bytes })
+  }
+  return out
 }
 
 /* ───────── 模型 ───────── */
@@ -180,10 +287,28 @@ function buildSettingsPayload(s: Settings) {
 export async function startAnalysis(
   files: File[],
   settings: Settings,
+  onStage?: (stage: PrepareStage) => void,
+): Promise<{ jobId: string; totalImages: number }> {
+  const prepared = await prepareUpload(files, settings, onStage)
+  return uploadAnalysis(prepared, settings, onStage)
+}
+
+/** 压缩好之后单独发这一步，传输中断时可以在不重新压缩的前提下重发。 */
+export async function uploadAnalysis(
+  prepared: File[],
+  settings: Settings,
+  onStage?: (stage: PrepareStage) => void,
 ): Promise<{ jobId: string; totalImages: number }> {
   const formData = new FormData()
-  files.forEach((f) => formData.append('files', f))
+  prepared.forEach((f) => formData.append('files', f))
   formData.append('settings', JSON.stringify(buildSettingsPayload(settings)))
+
+  onStage?.({
+    phase: 'upload',
+    done: prepared.length,
+    total: prepared.length,
+    bytes: prepared.reduce((sum, f) => sum + f.size, 0),
+  })
 
   const data = await request<{ job_id: string; total_images: number }>('/api/analyze', {
     method: 'POST',
@@ -223,7 +348,8 @@ export function subscribeToJob(
 }
 
 export function getDownloadUrl(jobId: string, type: 'all' | 'txt') {
-  return `${API}/api/download/${jobId}/${type}`
+  // API 已经是 /api/backend，Next 的 rewrite 会补上后端的 /api，这里不能再写一遍。
+  return `${API}/download/${jobId}/${type}`
 }
 
 export type { AnalysisResult }

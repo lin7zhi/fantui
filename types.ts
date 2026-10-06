@@ -18,6 +18,8 @@ export interface Settings {
   imagesPerRequest: number
   maxConcurrent: number
   skipCompleted: boolean
+  compressUpload: boolean
+  uploadMaxEdge: number
   customPrompt: string
   krea2: boolean
   krea2EvidenceMode: boolean
@@ -64,6 +66,11 @@ export const DEFAULT_SETTINGS: Settings = {
   imagesPerRequest: 5,
   maxConcurrent: 3,
   skipCompleted: true,
+  // 上传前把图片压到最长边 uploadMaxEdge 的 JPEG：手机上一批几十张原图动辄上百 MB，
+  // 传输中途极易被切断（Safari 直接报 Load failed），压缩后降到几 MB。模型看到的
+  // 本来就是后端压过的 1024px 版本，反推结果不受影响。
+  compressUpload: true,
+  uploadMaxEdge: 1536,
   customPrompt: '',
   krea2: false,
   krea2EvidenceMode: false,
