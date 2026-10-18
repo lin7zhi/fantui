@@ -431,6 +431,38 @@ export async function uploadAnalysis(
   return { jobId: data.job_id, totalImages: data.total_images }
 }
 
+/** 服务端还留着这一批的原图时，重推可以直接 0 字节上传；过期才需要退回重传。 */
+export class RetryExpiredError extends Error {}
+
+export async function retryJob(
+  batchId: string,
+  opts?: { onlyFailed?: boolean; settings?: Settings },
+): Promise<{ jobId: string; totalImages: number; retried: string[] }> {
+  const body: Record<string, unknown> = { only_failed: opts?.onlyFailed ?? true }
+  if (opts?.settings) body.settings = buildSettingsPayload(opts.settings)
+
+  let res: Response
+  try {
+    res = await fetch(`${API}/jobs/${batchId}/retry`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err)
+    throw new UploadInterruptedError(interruptedMessage(raw))
+  }
+  if (res.status === 410) throw new RetryExpiredError(await readError(res))
+  if (res.status === 401) {
+    clearSession()
+    throw new Error(await readError(res))
+  }
+  if (!res.ok) throw new Error(await readError(res))
+
+  const data = (await res.json()) as { job_id: string; total_images: number; retried?: string[] }
+  return { jobId: data.job_id, totalImages: data.total_images, retried: data.retried || [] }
+}
+
 export function subscribeToJob(
   jobId: string,
   onEvent: (evt: JobEvent) => void,

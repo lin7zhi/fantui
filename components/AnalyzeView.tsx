@@ -8,7 +8,10 @@ import {
   SkipForward, CheckCircle2, XCircle, RefreshCw, Camera,
 } from 'lucide-react'
 import type { Settings, AnalysisResult } from '@/types'
-import { uploadAnalysis, prepareUpload, subscribeToJob, getDownloadUrl, UploadInterruptedError } from '@/lib/api'
+import {
+  uploadAnalysis, prepareUpload, subscribeToJob, getDownloadUrl,
+  UploadInterruptedError, retryJob, RetryExpiredError,
+} from '@/lib/api'
 import { useAuth } from '@/lib/useAuth'
 import { UploadZone } from './UploadZone'
 
@@ -21,14 +24,55 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
   const { user, refresh: refreshAuth } = useAuth()
   const [files, setFiles] = useState<File[]>([])
   const [processing, setProcessing] = useState(false)
+  const [retrying, setRetrying] = useState(false)
   const [progress, setProgress] = useState(0)
   const [progressMsg, setProgressMsg] = useState('')
   const [results, setResults] = useState<AnalysisResult[]>([])
   const [jobId, setJobId] = useState<string | null>(null)
+  // 批次 id = 最初那次上传的 job id；重推失败项用它，不用重新传图
+  const [batchId, setBatchId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState<'all' | 'chinese' | 'english' | null>(null)
   const [showGallery, setShowGallery] = useState(false)
   const unsubRef = useRef<(() => void) | null>(null)
+
+  /** 订阅任务进度；retried 非空表示这是一次「重推失败项」，结果按文件名并回原列表。 */
+  const subscribeRun = useCallback(
+    (jid: string, retried: string[] | null) => {
+      const unsub = subscribeToJob(
+        jid,
+        (evt) => {
+          if (evt.type === 'progress') {
+            setProgress(evt.progress ?? 0)
+            setProgressMsg(evt.message ?? '')
+          } else if (evt.type === 'complete') {
+            const incoming = evt.results ?? []
+            setResults((prev) => {
+              if (!retried) return incoming
+              const map = new Map(prev.map((r) => [r.filename, r]))
+              incoming.forEach((r) => map.set(r.filename, r))
+              return Array.from(map.values())
+            })
+            setProgress(1)
+            setProcessing(false)
+            setRetrying(false)
+            if (user) refreshAuth()
+          } else if (evt.type === 'error') {
+            setError(evt.message ?? '未知错误')
+            setProcessing(false)
+            setRetrying(false)
+          }
+        },
+        (err) => {
+          setError(err.message)
+          setProcessing(false)
+          setRetrying(false)
+        },
+      )
+      unsubRef.current = unsub
+    },
+    [user, refreshAuth],
+  )
 
   const handleStart = useCallback(async () => {
     if (!files.length) return
@@ -38,6 +82,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
     setResults([])
     setError(null)
     setJobId(null)
+    setBatchId(null)
 
     const mb = (bytes: number) => (bytes / 1024 / 1024).toFixed(1)
 
@@ -73,36 +118,75 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
       if (!started) throw new Error('启动失败')
       const { jobId: jid } = started
       setJobId(jid)
+      setBatchId(jid)
       setProgress(0)
       setProgressMsg('正在处理中...')
 
-      const unsub = subscribeToJob(
-        jid,
-        (evt) => {
-          if (evt.type === 'progress') {
-            setProgress(evt.progress ?? 0)
-            setProgressMsg(evt.message ?? '')
-          } else if (evt.type === 'complete') {
-            setResults(evt.results ?? [])
-            setProgress(1)
-            setProcessing(false)
-            if (user) refreshAuth()
-          } else if (evt.type === 'error') {
-            setError(evt.message ?? '未知错误')
-            setProcessing(false)
-          }
-        },
-        (err) => {
-          setError(err.message)
-          setProcessing(false)
-        },
-      )
-      unsubRef.current = unsub
+      subscribeRun(jid, null)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '启动失败')
       setProcessing(false)
     }
-  }, [files, settings, user, refreshAuth])
+  }, [files, settings, subscribeRun])
+
+  /** 重推失败项：服务端还留着原图就直接重跑（0 字节上传），过期了只重传失败的那几张。 */
+  const handleRetryFailed = useCallback(async () => {
+    if (!batchId || processing) return
+    const failedNames = results.filter((r) => !r.success).map((r) => r.filename)
+    // results 为空 = 整批都没跑起来（密钥/quota 出错），服务端会把这一批全当失败项重推
+    const targets = failedNames.length ? failedNames : files.map((f) => f.name)
+    if (!targets.length) return
+
+    const mb = (bytes: number) => (bytes / 1024 / 1024).toFixed(1)
+    setProcessing(true)
+    setRetrying(true)
+    setError(null)
+    setProgress(0)
+    setProgressMsg(`正在重推 ${targets.length} 张...`)
+
+    try {
+      let started: { jobId: string; totalImages: number } | null = null
+      let merged: string[] | null = null
+      try {
+        const r = await retryJob(batchId, { onlyFailed: true, settings })
+        started = { jobId: r.jobId, totalImages: r.totalImages }
+        merged = r.retried.length ? r.retried : targets
+        setProgressMsg(`正在重推 ${r.totalImages} 张（复用服务端原图，0 字节上传）...`)
+      } catch (err) {
+        if (!(err instanceof RetryExpiredError)) throw err
+        // 服务端批次已过期（重启或超过 2 小时）：退化成只重传失败的那几张
+        const retryFiles = files.filter((f) => targets.includes(f.name))
+        if (!retryFiles.length) {
+          throw new Error('服务端上传会话已过期，本地也没有这些原图了，请重新选择图片再推')
+        }
+        setProgressMsg(`服务端会话已过期，改为只重传失败的 ${retryFiles.length} 张...`)
+        const prepared = await prepareUpload(retryFiles, settings, (stage) => {
+          if (stage.phase === 'compress') {
+            setProgress(stage.total ? stage.done / stage.total : 0)
+            setProgressMsg(stage.note ?? `正在压缩 ${stage.done}/${stage.total}...`)
+          }
+        })
+        const up = await uploadAnalysis(prepared, settings, (stage) => {
+          const total = stage.bytes || 0
+          setProgress(total ? Math.min(1, (stage.sent ?? 0) / total) : 0)
+          setProgressMsg(`正在上传 ${mb(stage.sent ?? 0)} / ${mb(total)} MB（共 ${stage.total} 个文件）...`)
+        })
+        started = { jobId: up.jobId, totalImages: up.totalImages }
+        merged = null
+        setBatchId(up.jobId)
+      }
+
+      if (!started) throw new Error('重推失败')
+      setJobId(started.jobId)
+      setProgress(0)
+      setProgressMsg('正在处理中...')
+      subscribeRun(started.jobId, merged)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '重推失败')
+      setProcessing(false)
+      setRetrying(false)
+    }
+  }, [batchId, processing, results, files, settings, subscribeRun])
 
   const copyText = (language: 'chinese' | 'english' | 'all') => results
     .filter((r) => r.success)
@@ -361,6 +445,16 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
             <div>
               <p className="text-sm font-medium text-red-300">反推失败</p>
               <p className="text-xs text-zinc-500 mt-1">{error}</p>
+              {!processing && batchId && (
+                <button
+                  onClick={handleRetryFailed}
+                  disabled={retrying}
+                  className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-all disabled:opacity-40"
+                >
+                  {retrying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  重推这一批（不用重新上传）
+                </button>
+              )}
             </div>
           </motion.div>
         )}
@@ -384,6 +478,17 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
                   <span className="flex items-center gap-1.5 text-red-400">
                     <XCircle className="w-4 h-4" /> {errorCount} 失败
                   </span>
+                )}
+                {!processing && errorCount > 0 && batchId && (
+                  <button
+                    onClick={handleRetryFailed}
+                    disabled={retrying}
+                    title="服务端还留着这一批原图，重推不用重新上传"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-all disabled:opacity-40"
+                  >
+                    {retrying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                    重推失败的 {errorCount} 张（不用重新上传）
+                  </button>
                 )}
                 {user && successCount > 0 && (
                   <span className="text-xs text-emerald-400/70">已存入词记录 · 24h</span>
