@@ -43,9 +43,11 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
 
     try {
       const prepared = await prepareUpload(files, settings, (stage) => {
-        if (stage.phase === 'compress') {
-          setProgressMsg(`正在压缩图片 ${stage.done}/${stage.total}（约 ${mb(stage.bytes)} MB）...`)
-        }
+        if (stage.phase !== 'compress') return
+        setProgress(stage.total ? stage.done / stage.total : 0)
+        setProgressMsg(
+          stage.note ?? `正在压缩图片 ${stage.done}/${stage.total}（约 ${mb(stage.bytes)} MB）...`,
+        )
       })
 
       let attempt = 0
@@ -54,7 +56,12 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
         attempt += 1
         try {
           started = await uploadAnalysis(prepared, settings, (stage) => {
-            setProgressMsg(`正在上传 ${stage.total} 张（约 ${mb(stage.bytes)} MB）...`)
+            const total = stage.bytes || 0
+            const sent = stage.sent ?? 0
+            setProgress(total ? Math.min(1, sent / total) : 0)
+            setProgressMsg(
+              `正在上传 ${mb(sent)} / ${mb(total)} MB（共 ${stage.total} 个文件）...`,
+            )
           })
         } catch (err) {
           // 传输层被掐断时（Safari 直接报 Load failed）自动重发一次，压缩后的体积重传很便宜。
@@ -66,6 +73,7 @@ export function AnalyzeView({ settings, onSettingsChange }: Props) {
       if (!started) throw new Error('启动失败')
       const { jobId: jid } = started
       setJobId(jid)
+      setProgress(0)
       setProgressMsg('正在处理中...')
 
       const unsub = subscribeToJob(

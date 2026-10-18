@@ -1,5 +1,6 @@
 import type { Settings, AnalysisResult, JobEvent } from '@/types'
 import { authHeaders, clearSession, getToken, type AuthUser } from '@/lib/auth'
+import { extractImagesFromZip, isZipFile } from '@/lib/zip'
 
 // Keep API calls same-origin so remote browser clients never resolve localhost locally.
 const API = '/api/backend'
@@ -122,6 +123,10 @@ export interface PrepareStage {
   done: number
   total: number
   bytes: number
+  /** 上传阶段：已经发出去的字节数（XHR upload.onprogress） */
+  sent?: number
+  /** 阶段性说明（例如「正在解压 xxx.zip 3/48」） */
+  note?: string
 }
 
 export async function prepareUpload(
@@ -130,15 +135,114 @@ export async function prepareUpload(
   onStage?: (stage: PrepareStage) => void,
 ): Promise<File[]> {
   if (!settings.compressUpload) return files
+
+  // .zip 不参与压缩（shrinkImage 只认图片 MIME），几百 MB 的包会原样直传，
+  // 就是「上传传半天」。先在本地把包拆成图片，再逐张压成 JPEG 一起传。
+  const expanded: File[] = []
+  for (const file of files) {
+    if (!isZipFile(file)) {
+      expanded.push(file)
+      continue
+    }
+    try {
+      let skipped = 0
+      const { files: inner, skipped: bad } = await extractImagesFromZip(
+        file,
+        (done, total, name) => {
+          onStage?.({
+            phase: 'compress',
+            done,
+            total,
+            bytes: file.size,
+            note: `正在本地解压 ${file.name} ${done}/${total}（${name}）...`,
+          })
+        },
+      )
+      skipped = bad
+      if (!inner.length) {
+        expanded.push(file)
+        continue
+      }
+      expanded.push(...inner)
+      onStage?.({
+        phase: 'compress',
+        done: 0,
+        total: inner.length,
+        bytes: file.size,
+        note: `${file.name} 解出 ${inner.length} 张图片${skipped ? `（跳过 ${skipped} 个无法解包的条目）` : ''}，开始压缩...`,
+      })
+    } catch {
+      // 加密封包 / 异常结构 / 不支持的打包方式：回退原样直传，后端照样能解
+      expanded.push(file)
+      onStage?.({
+        phase: 'compress',
+        done: 0,
+        total: files.length,
+        bytes: file.size,
+        note: `${file.name} 无法在本地解压，改为原样上传（由后端解压）...`,
+      })
+    }
+  }
+
   const out: File[] = []
   let bytes = 0
-  for (let i = 0; i < files.length; i++) {
-    const shrunk = await shrinkImage(files[i], settings.uploadMaxEdge)
+  for (let i = 0; i < expanded.length; i++) {
+    const shrunk = await shrinkImage(expanded[i], settings.uploadMaxEdge)
     out.push(shrunk)
     bytes += shrunk.size
-    onStage?.({ phase: 'compress', done: i + 1, total: files.length, bytes })
+    onStage?.({ phase: 'compress', done: i + 1, total: expanded.length, bytes })
   }
   return out
+}
+
+function detailFromText(text: string): string {
+  try {
+    const data = JSON.parse(text)
+    if (typeof data?.detail === 'string') return data.detail
+    if (Array.isArray(data?.detail)) return data.detail.map((d: { msg?: string }) => d.msg).join('; ')
+  } catch {
+    /* not JSON */
+  }
+  return text
+}
+
+/** XHR 上传：fetch 拿不到上传进度，几百 MB 的包在界面上只能看到卡在 0% 的进度条。 */
+function uploadWithProgress<T>(
+  path: string,
+  body: FormData,
+  onProgress?: (sent: number, total: number) => void,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const backendPath = path.startsWith('/api/') ? path.slice(4) : path
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${API}${backendPath}`)
+    const headers = authHeaders()
+    Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v))
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress?.(e.loaded, e.total)
+    }
+    xhr.onload = () => {
+      const text = xhr.responseText || ''
+      if (xhr.status === 401) {
+        clearSession()
+        reject(new Error(detailFromText(text) || '登录已过期'))
+        return
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error(detailFromText(text) || `HTTP ${xhr.status}`))
+        return
+      }
+      try {
+        resolve(JSON.parse(text) as T)
+      } catch {
+        reject(new Error('响应不是 JSON'))
+      }
+    }
+    xhr.onerror = () => reject(new UploadInterruptedError(interruptedMessage('network error')))
+    xhr.onabort = () => reject(new UploadInterruptedError(interruptedMessage('aborted')))
+    xhr.ontimeout = () => reject(new UploadInterruptedError(interruptedMessage('timeout')))
+    xhr.send(body)
+  })
 }
 
 /* ───────── 模型 ───────── */
@@ -303,17 +407,27 @@ export async function uploadAnalysis(
   prepared.forEach((f) => formData.append('files', f))
   formData.append('settings', JSON.stringify(buildSettingsPayload(settings)))
 
+  const totalBytes = prepared.reduce((sum, f) => sum + f.size, 0)
   onStage?.({
     phase: 'upload',
     done: prepared.length,
     total: prepared.length,
-    bytes: prepared.reduce((sum, f) => sum + f.size, 0),
+    bytes: totalBytes,
+    sent: 0,
   })
 
-  const data = await request<{ job_id: string; total_images: number }>('/api/analyze', {
-    method: 'POST',
-    body: formData,
-  })
+  const data = await uploadWithProgress<{ job_id: string; total_images: number }>(
+    '/api/analyze',
+    formData,
+    (sent) =>
+      onStage?.({
+        phase: 'upload',
+        done: prepared.length,
+        total: prepared.length,
+        bytes: totalBytes,
+        sent,
+      }),
+  )
   return { jobId: data.job_id, totalImages: data.total_images }
 }
 

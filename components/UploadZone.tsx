@@ -121,7 +121,7 @@ export function UploadZone({ files, onChange }: Props) {
               {dragging ? '松开鼠标上传' : '点击选择，或拖拽图片 / ZIP 到此处'}
             </p>
             <p className="text-xs text-zinc-600 mt-1">
-              支持 JPG、PNG、WebP、BMP、GIF 或 .zip 压缩包
+              支持 JPG、PNG、WebP、BMP、GIF 或 .zip（压缩包会在本地解开、压缩后再上传）
             </p>
           </div>
 
